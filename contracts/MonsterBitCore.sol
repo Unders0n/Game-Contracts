@@ -120,7 +120,6 @@ contract AccessControl {
 
 
 /// @title Base contract for MonsterBit. Holds all common structs, events and base variables.
-/// @author Axiom Zen (https://www.axiomzen.co)
 /// @dev See the MonsterCore contract documentation to understand how the various contract facets are arranged.
 contract MonsterBase is AccessControl {
     /*** EVENTS ***/
@@ -288,7 +287,6 @@ contract ERC721Metadata {
 
 
 /// @title The facet of the MonsterBit core contract that manages ownership, ERC-721 (draft) compliant.
-/// @author Axiom Zen (https://www.axiomzen.co)
 /// @dev Ref: https://github.com/ethereum/EIPs/issues/721
 ///  See the MonsterCore contract documentation to understand how the various contract facets are arranged.
 contract MonsterOwnership is MonsterBase, ERC721 {
@@ -675,8 +673,7 @@ contract MonsterMinting is MonsterAuction {
 
 
 
-/// @title MonsterBit: Collectible, breedable, and oh-so-adorable monsters on the Ethereum blockchain.
-/// @author Axiom Zen (https://www.axiomzen.co)
+/// @title MonsterBit: Collectible, breedable, and monsters on the Ethereum blockchain.
 /// @dev The main MonsterBit contract, keeps track of monsters so they don't wander around and get lost.
 contract MonsterCore is MonsterMinting {
 
