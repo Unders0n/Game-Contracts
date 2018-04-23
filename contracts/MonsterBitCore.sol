@@ -3,19 +3,18 @@ pragma solidity ^0.4.11;
 import "./MonsterBitSaleAuction.sol";
 
 
-/// @title A facet of KittyCore that manages special access privileges.
-/// @author Axiom Zen (https://www.axiomzen.co)
-/// @dev See the KittyCore contract documentation to understand how the various contract facets are arranged.
+/// @title A facet of MonsterCore that manages special access privileges.
+/// @dev See the MonsterCore contract documentation to understand how the various contract facets are arranged.
 contract AccessControl {
-    // This facet controls access control for CryptoKitties. There are four roles managed here:
+    // This facet controls access control for MonsterBit. There are four roles managed here:
     //
     //     - The CEO: The CEO can reassign other roles and change the addresses of our dependent smart
     //         contracts. It is also the only role that can unpause the smart contract. It is initially
-    //         set to the address that created the smart contract in the KittyCore constructor.
+    //         set to the address that created the smart contract in the MonsterCore constructor.
     //
-    //     - The CFO: The CFO can withdraw funds from KittyCore and its auction contracts.
+    //     - The CFO: The CFO can withdraw funds from MonsterCore and its auction contracts.
     //
-    //     - The COO: The COO can release gen0 kitties to auction, and mint promo cats.
+    //     - The COO: The COO can release gen0 monsters to auction, and mint promo monsters.
     //
     // It should be noted that these roles are distinct without overlap in their access abilities, the
     // abilities listed for each role above are exhaustive. In particular, while the CEO can assign any
@@ -120,39 +119,39 @@ contract AccessControl {
 
 
 
-/// @title Base contract for CryptoKitties. Holds all common structs, events and base variables.
+/// @title Base contract for MonsterBit. Holds all common structs, events and base variables.
 /// @author Axiom Zen (https://www.axiomzen.co)
-/// @dev See the KittyCore contract documentation to understand how the various contract facets are arranged.
+/// @dev See the MonsterCore contract documentation to understand how the various contract facets are arranged.
 contract MonsterBase is AccessControl {
     /*** EVENTS ***/
 
-    /// @dev The Birth event is fired whenever a new kitten comes into existence. This obviously
-    ///  includes any time a cat is created through the giveBirth method, but it is also called
-    ///  when a new gen0 cat is created.
+    /// @dev The Birth event is fired whenever a new monster comes into existence. This obviously
+    ///  includes any time a monster is created through the giveBirth method, but it is also called
+    ///  when a new gen0 monster is created.
     event Birth(address owner, uint256 monsterId, uint256 genes);
 
-    /// @dev Transfer event as defined in current draft of ERC721. Emitted every time a kitten
+    /// @dev Transfer event as defined in current draft of ERC721. Emitted every time a monster
     ///  ownership is assigned, including births.
     event Transfer(address from, address to, uint256 tokenId);
 
     /*** DATA TYPES ***/
 
-    /// @dev The main Kitty struct. Every cat in CryptoKitties is represented by a copy
+    /// @dev The main Monster struct. Every monster in MonsterBit is represented by a copy
     ///  of this structure, so great care was taken to ensure that it fits neatly into
     ///  exactly two 256-bit words. Note that the order of the members in this structure
     ///  is important because of the byte-packing rules used by Ethereum.
     ///  Ref: http://solidity.readthedocs.io/en/develop/miscellaneous.html
     struct Monster {
-        // The Kitty's genetic code is packed into these 256-bits, the format is
-        // sooper-sekret! A cat's genes never change.
+        // The Monster's genetic code is packed into these 256-bits, the format is
+        // sooper-sekret! A monster's genes never change.
         uint256 genes;
         
-        // The timestamp from the block when this cat came into existence.
+        // The timestamp from the block when this monster came into existence.
         uint64 birthTime;
         
-        // The "generation number" of this cat. Cats minted by the CK contract
+        // The "generation number" of this monster. Cats minted by the CK contract
         // for sale are called "gen0" and have a generation number of 0. The
-        // generation number of all other cats is the larger of the two generation
+        // generation number of all other monsters is the larger of the two generation
         // numbers of their parents, plus one.
         // (i.e. max(matron.generation, sire.generation) + 1)
         uint16 generation;
@@ -164,39 +163,39 @@ contract MonsterBase is AccessControl {
 
     /*** STORAGE ***/
 
-    /// @dev An array containing the Kitty struct for all Kitties in existence. The ID
-    ///  of each cat is actually an index into this array. Note that ID 0 is a negacat,
-    ///  the unKitty, the mythical beast that is the parent of all gen0 cats. A bizarre
+    /// @dev An array containing the Monster struct for all Monsters in existence. The ID
+    ///  of each monster is actually an index into this array. Note that ID 0 is a negamonster,
+    ///  the unMonster, the mythical beast that is the parent of all gen0 monsters. A bizarre
     ///  creature that is both matron and sire... to itself! Has an invalid genetic code.
-    ///  In other words, cat ID 0 is invalid... ;-)
+    ///  In other words, monster ID 0 is invalid... ;-)
     Monster[] monsters;
 
-    /// @dev A mapping from cat IDs to the address that owns them. All cats have
-    ///  some valid owner address, even gen0 cats are created with a non-zero owner.
+    /// @dev A mapping from monster IDs to the address that owns them. All monsters have
+    ///  some valid owner address, even gen0 monsters are created with a non-zero owner.
     mapping (uint256 => address) public monsterIndexToOwner;
 
     // @dev A mapping from owner address to count of tokens that address owns.
     //  Used internally inside balanceOf() to resolve ownership count.
     mapping (address => uint256) ownershipTokenCount;
 
-    /// @dev A mapping from KittyIDs to an address that has been approved to call
-    ///  transferFrom(). Each Kitty can only have one approved address for transfer
+    /// @dev A mapping from MonsterIDs to an address that has been approved to call
+    ///  transferFrom(). Each Monster can only have one approved address for transfer
     ///  at any time. A zero value means no approval is outstanding.
     mapping (uint256 => address) public monsterIndexToApproved;
 
-    /// @dev The address of the ClockAuction contract that handles sales of Kitties. This
+    /// @dev The address of the ClockAuction contract that handles sales of Monsters. This
     ///  same contract handles both peer-to-peer sales as well as the gen0 sales which are
     ///  initiated every 15 minutes.
     SaleClockAuction public saleAuction;
 
 
-    /// @dev Assigns ownership of a specific Kitty to an address.
+    /// @dev Assigns ownership of a specific Monster to an address.
     function _transfer(address _from, address _to, uint256 _tokenId) internal {
-        // Since the number of kittens is capped to 2^32 we can't overflow this
+        // Since the number of monsters is capped to 2^32 we can't overflow this
         ownershipTokenCount[_to]++;
         // transfer ownership
         monsterIndexToOwner[_tokenId] = _to;
-        // When creating new kittens _from is 0x0, but we can't account that address.
+        // When creating new monsters _from is 0x0, but we can't account that address.
         if (_from != address(0)) {
             ownershipTokenCount[_from]--;
             // clear any previously approved ownership exchange
@@ -206,13 +205,13 @@ contract MonsterBase is AccessControl {
         Transfer(_from, _to, _tokenId);
     }
 
-    /// @dev An internal method that creates a new kitty and stores it. This
+    /// @dev An internal method that creates a new monster and stores it. This
     ///  method doesn't do any checking and should only be called when the
     ///  input data is known to be valid. Will generate both a Birth event
     ///  and a Transfer event.
-    /// @param _generation The generation number of this cat, must be computed by caller.
-    /// @param _genes The kitty's genetic code.
-    /// @param _owner The inital owner of this cat, must be non-zero (except for the unKitty, ID 0)
+    /// @param _generation The generation number of this monster, must be computed by caller.
+    /// @param _genes The monster's genetic code.
+    /// @param _owner The inital owner of this monster, must be non-zero (except for the unMonster, ID 0)
     function _createMonster(
         uint256 _generation,
         uint256 _genes,
@@ -222,12 +221,12 @@ contract MonsterBase is AccessControl {
         returns (uint)
     {
         // These requires are not strictly necessary, our calling code should make
-        // sure that these conditions are never broken. However! _createKitty() is already
+        // sure that these conditions are never broken. However! _createMonster() is already
         // an expensive call (for storage), and it doesn't hurt to be especially careful
         // to ensure our data structures are always valid.
         require(_generation == uint256(uint16(_generation)));
 
-        // New kitty starts with the same cooldown as parent gen/2
+        // New monster starts with the same cooldown as parent gen/2
         uint16 cooldownIndex = uint16(_generation / 2);
         if (cooldownIndex > 13) {
             cooldownIndex = 13;
@@ -240,7 +239,7 @@ contract MonsterBase is AccessControl {
         });
         uint256 newMonsterId = monsters.push(_monster) - 1;
 
-        // It's probably never going to happen, 4 billion cats is A LOT, but
+        // It's probably never going to happen, 4 billion monsters is A LOT, but
         // let's just be 100% sure we never let this happen.
         require(newMonsterId == uint256(uint32(newMonsterId)));
 
@@ -263,7 +262,7 @@ contract MonsterBase is AccessControl {
 
 
 
-/// @title The external contract that is responsible for generating metadata for the kitties,
+/// @title The external contract that is responsible for generating metadata for the monsters,
 ///  it has one function that will return the data as bytes.
 contract ERC721Metadata {
     /// @dev Given a token Id, returns a byte array that is supposed to be converted into string.
@@ -288,17 +287,17 @@ contract ERC721Metadata {
 
 
 
-/// @title The facet of the CryptoKitties core contract that manages ownership, ERC-721 (draft) compliant.
+/// @title The facet of the MonsterBit core contract that manages ownership, ERC-721 (draft) compliant.
 /// @author Axiom Zen (https://www.axiomzen.co)
 /// @dev Ref: https://github.com/ethereum/EIPs/issues/721
-///  See the KittyCore contract documentation to understand how the various contract facets are arranged.
+///  See the MonsterCore contract documentation to understand how the various contract facets are arranged.
 contract MonsterOwnership is MonsterBase, ERC721 {
 
     /// @notice Name and symbol of the non fungible token, as defined in ERC721.
     string public constant name = "MonsterBit";
     string public constant symbol = "MB";
 
-    // The contract that will return kitty metadata
+    // The contract that will return monster metadata
     ERC721Metadata public erc721Metadata;
 
     bytes4 constant InterfaceSignature_ERC165 =
@@ -337,16 +336,16 @@ contract MonsterOwnership is MonsterBase, ERC721 {
     // are valid. We leave it to public methods to sanitize their inputs and follow
     // the required logic.
 
-    /// @dev Checks if a given address is the current owner of a particular Kitty.
+    /// @dev Checks if a given address is the current owner of a particular Monster.
     /// @param _claimant the address we are validating against.
-    /// @param _tokenId kitten id, only valid when > 0
+    /// @param _tokenId monster id, only valid when > 0
     function _owns(address _claimant, uint256 _tokenId) internal view returns (bool) {
         return monsterIndexToOwner[_tokenId] == _claimant;
     }
 
-    /// @dev Checks if a given address currently has transferApproval for a particular Kitty.
-    /// @param _claimant the address we are confirming kitten is approved for.
-    /// @param _tokenId kitten id, only valid when > 0
+    /// @dev Checks if a given address currently has transferApproval for a particular Monster.
+    /// @param _claimant the address we are confirming monster is approved for.
+    /// @param _tokenId monster id, only valid when > 0
     function _approvedFor(address _claimant, uint256 _tokenId) internal view returns (bool) {
         return monsterIndexToApproved[_tokenId] == _claimant;
     }
@@ -354,24 +353,24 @@ contract MonsterOwnership is MonsterBase, ERC721 {
     /// @dev Marks an address as being approved for transferFrom(), overwriting any previous
     ///  approval. Setting _approved to address(0) clears all transfer approval.
     ///  NOTE: _approve() does NOT send the Approval event. This is intentional because
-    ///  _approve() and transferFrom() are used together for putting Kitties on auction, and
+    ///  _approve() and transferFrom() are used together for putting Monsters on auction, and
     ///  there is no value in spamming the log with Approval events in that case.
     function _approve(uint256 _tokenId, address _approved) internal {
         monsterIndexToApproved[_tokenId] = _approved;
     }
 
-    /// @notice Returns the number of Kitties owned by a specific address.
+    /// @notice Returns the number of Monsters owned by a specific address.
     /// @param _owner The owner address to check.
     /// @dev Required for ERC-721 compliance
     function balanceOf(address _owner) public view returns (uint256 count) {
         return ownershipTokenCount[_owner];
     }
 
-    /// @notice Transfers a Kitty to another address. If transferring to a smart
+    /// @notice Transfers a Monster to another address. If transferring to a smart
     ///  contract be VERY CAREFUL to ensure that it is aware of ERC-721 (or
-    ///  CryptoKitties specifically) or your Kitty may be lost forever. Seriously.
+    ///  MonsterBit specifically) or your Monster may be lost forever. Seriously.
     /// @param _to The address of the recipient, can be a user or contract.
-    /// @param _tokenId The ID of the Kitty to transfer.
+    /// @param _tokenId The ID of the Monster to transfer.
     /// @dev Required for ERC-721 compliance.
     function transfer(
         address _to,
@@ -383,26 +382,26 @@ contract MonsterOwnership is MonsterBase, ERC721 {
         // Safety check to prevent against an unexpected 0x0 default.
         require(_to != address(0));
         // Disallow transfers to this contract to prevent accidental misuse.
-        // The contract should never own any kitties (except very briefly
-        // after a gen0 cat is created and before it goes on auction).
+        // The contract should never own any monsters (except very briefly
+        // after a gen0 monster is created and before it goes on auction).
         require(_to != address(this));
         // Disallow transfers to the auction contracts to prevent accidental
-        // misuse. Auction contracts should only take ownership of kitties
+        // misuse. Auction contracts should only take ownership of monsters
         // through the allow + transferFrom flow.
         require(_to != address(saleAuction));
 
-        // You can only send your own cat.
+        // You can only send your own monster.
         require(_owns(msg.sender, _tokenId));
 
         // Reassign ownership, clear pending approvals, emit Transfer event.
         _transfer(msg.sender, _to, _tokenId);
     }
 
-    /// @notice Grant another address the right to transfer a specific Kitty via
+    /// @notice Grant another address the right to transfer a specific Monster via
     ///  transferFrom(). This is the preferred flow for transfering NFTs to contracts.
     /// @param _to The address to be granted transfer approval. Pass address(0) to
     ///  clear all approvals.
-    /// @param _tokenId The ID of the Kitty that can be transferred if this call succeeds.
+    /// @param _tokenId The ID of the Monster that can be transferred if this call succeeds.
     /// @dev Required for ERC-721 compliance.
     function approve(
         address _to,
@@ -421,12 +420,12 @@ contract MonsterOwnership is MonsterBase, ERC721 {
         Approval(msg.sender, _to, _tokenId);
     }
 
-    /// @notice Transfer a Kitty owned by another address, for which the calling address
+    /// @notice Transfer a Monster owned by another address, for which the calling address
     ///  has previously been granted transfer approval by the owner.
-    /// @param _from The address that owns the Kitty to be transfered.
-    /// @param _to The address that should take ownership of the Kitty. Can be any address,
+    /// @param _from The address that owns the Monster to be transfered.
+    /// @param _to The address that should take ownership of the Monster. Can be any address,
     ///  including the caller.
-    /// @param _tokenId The ID of the Kitty to be transferred.
+    /// @param _tokenId The ID of the Monster to be transferred.
     /// @dev Required for ERC-721 compliance.
     function transferFrom(
         address _from,
@@ -439,8 +438,8 @@ contract MonsterOwnership is MonsterBase, ERC721 {
         // Safety check to prevent against an unexpected 0x0 default.
         require(_to != address(0));
         // Disallow transfers to this contract to prevent accidental misuse.
-        // The contract should never own any kitties (except very briefly
-        // after a gen0 cat is created and before it goes on auction).
+        // The contract should never own any monsters (except very briefly
+        // after a gen0 monster is created and before it goes on auction).
         require(_to != address(this));
         // Check for approval and valid ownership
         require(_approvedFor(msg.sender, _tokenId));
@@ -450,13 +449,13 @@ contract MonsterOwnership is MonsterBase, ERC721 {
         _transfer(_from, _to, _tokenId);
     }
 
-    /// @notice Returns the total number of Kitties currently in existence.
+    /// @notice Returns the total number of Monsters currently in existence.
     /// @dev Required for ERC-721 compliance.
     function totalSupply() public view returns (uint) {
         return monsters.length - 1;
     }
 
-    /// @notice Returns the address currently assigned ownership of a given Kitty.
+    /// @notice Returns the address currently assigned ownership of a given Monster.
     /// @dev Required for ERC-721 compliance.
     function ownerOf(uint256 _tokenId)
         external
@@ -468,10 +467,10 @@ contract MonsterOwnership is MonsterBase, ERC721 {
         require(owner != address(0));
     }
 
-    /// @notice Returns a list of all Kitty IDs assigned to an address.
-    /// @param _owner The owner whose Kitties we are interested in.
+    /// @notice Returns a list of all Monster IDs assigned to an address.
+    /// @param _owner The owner whose Monsters we are interested in.
     /// @dev This method MUST NEVER be called by smart contract code. First, it's fairly
-    ///  expensive (it walks the entire Kitty array looking for cats belonging to owner),
+    ///  expensive (it walks the entire Monster array looking for monsters belonging to owner),
     ///  but it also returns a dynamic array, which is only supported for web3 calls, and
     ///  not contract-to-contract calls.
     function tokensOfOwner(address _owner) external view returns(uint256[] ownerTokens) {
@@ -482,16 +481,16 @@ contract MonsterOwnership is MonsterBase, ERC721 {
             return new uint256[](0);
         } else {
             uint256[] memory result = new uint256[](tokenCount);
-            uint256 totalCats = totalSupply();
+            uint256 totalMonsters = totalSupply();
             uint256 resultIndex = 0;
 
-            // We count on the fact that all cats have IDs starting at 1 and increasing
-            // sequentially up to the totalCat count.
-            uint256 catId;
+            // We count on the fact that all monsters have IDs starting at 1 and increasing
+            // sequentially up to the totalMonsters count.
+            uint256 monsterId;
 
-            for (catId = 1; catId <= totalCats; catId++) {
-                if (monsterIndexToOwner[catId] == _owner) {
-                    result[resultIndex] = catId;
+            for (monsterId = 1; monsterId <= totalMonsters; monsterId++) {
+                if (monsterIndexToOwner[monsterId] == _owner) {
+                    result[resultIndex] = monsterId;
                     resultIndex++;
                 }
             }
@@ -542,7 +541,7 @@ contract MonsterOwnership is MonsterBase, ERC721 {
 
     /// @notice Returns a URI pointing to a metadata package for this token conforming to
     ///  ERC-721 (https://github.com/ethereum/EIPs/issues/721)
-    /// @param _tokenId The ID number of the Kitty whose metadata should be returned.
+    /// @param _tokenId The ID number of the Monster whose metadata should be returned.
     function tokenMetadata(uint256 _tokenId, string _preferredTransport) external view returns (string infoUrl) {
         require(erc721Metadata != address(0));
         bytes32[4] memory buffer;
@@ -556,15 +555,15 @@ contract MonsterOwnership is MonsterBase, ERC721 {
 
 
 
-/// @title Handles creating auctions for sale and siring of kitties.
+/// @title Handles creating auctions for sale and siring of monsters.
 ///  This wrapper of ReverseAuction exists only so that users can create
 ///  auctions with only one transaction.
 contract MonsterAuction is MonsterOwnership {
 
-    // @notice The auction contract variables are defined in KittyBase to allow
-    //  us to refer to them in KittyOwnership to prevent accidental transfers.
-    // `saleAuction` refers to the auction for gen0 and p2p sale of kitties.
-    // `siringAuction` refers to the auction for siring rights of kitties.
+    // @notice The auction contract variables are defined in MonsterBase to allow
+    //  us to refer to them in MonsterOwnership to prevent accidental transfers.
+    // `saleAuction` refers to the auction for gen0 and p2p sale of monsters.
+    // `siringAuction` refers to the auction for siring rights of monsters.
 
     /// @dev Sets the reference to the sale auction.
     /// @param _address - Address of sale contract.
@@ -579,7 +578,7 @@ contract MonsterAuction is MonsterOwnership {
     }
 
 
-    /// @dev Put a kitty up for auction.
+    /// @dev Put a monster up for auction.
     ///  Does some ownership trickery to create auctions in one tx.
     function createSaleAuction(
         uint256 _monsterId,
@@ -591,15 +590,15 @@ contract MonsterAuction is MonsterOwnership {
         whenNotPaused
     {
         // Auction contract checks input sizes
-        // If kitty is already on any auction, this will throw
+        // If monster is already on any auction, this will throw
         // because it will be owned by the auction contract.
         require(_owns(msg.sender, _monsterId));
-        // Ensure the kitty is not pregnant to prevent the auction
+        // Ensure the monster is not pregnant to prevent the auction
         // contract accidentally receiving ownership of the child.
-        // NOTE: the kitty IS allowed to be in a cooldown.
+        // NOTE: the monster IS allowed to be in a cooldown.
         _approve(_monsterId, saleAuction);
         // Sale auction throws if inputs are invalid and clears
-        // transfer and sire approval after escrowing the kitty.
+        // transfer and sire approval after escrowing the monster.
         saleAuction.createAuction(
             _monsterId,
             _startingPrice,
@@ -611,7 +610,7 @@ contract MonsterAuction is MonsterOwnership {
 
 
     /// @dev Transfers the balance of the sale auction contract
-    /// to the KittyCore contract. We use two-step withdrawal to
+    /// to the MonsterCore contract. We use two-step withdrawal to
     /// prevent two transfer calls in the auction bid function.
     function withdrawAuctionBalances() external onlyCLevel {
         saleAuction.withdrawBalance();
@@ -621,10 +620,10 @@ contract MonsterAuction is MonsterOwnership {
 
 
 
-/// @title all functions related to creating kittens
+/// @title all functions related to creating monsters
 contract MonsterMinting is MonsterAuction {
 
-    // Limits the number of cats the contract owner can ever create.
+    // Limits the number of monsters the contract owner can ever create.
     uint256 public constant PROMO_CREATION_LIMIT = 1000;
 
 
@@ -634,13 +633,13 @@ contract MonsterMinting is MonsterAuction {
     uint256 public constant GEN0_AUCTION_DURATION = 7 days;
 
 
-    // Counts the number of cats the contract owner has created.
+    // Counts the number of monsters the contract owner has created.
     uint256 public promoCreatedCount;
 
 
-    /// @dev we can create promo kittens, up to a limit. Only callable by COO
-    /// @param _genes the encoded genes of the kitten to be created, any value is accepted
-    /// @param _owner the future owner of the created kittens. Default to contract COO
+    /// @dev we can create promo monsters, up to a limit. Only callable by COO
+    /// @param _genes the encoded genes of the monster to be created, any value is accepted
+    /// @param _owner the future owner of the created monsters. Default to contract COO
     function createPromoMonster(uint256 _genes, address _owner) external onlyCOO {
         address monsterOwner = _owner;
         if (monsterOwner == address(0)) {
@@ -652,7 +651,7 @@ contract MonsterMinting is MonsterAuction {
         _createMonster(0, _genes, monsterOwner);
     }
 
-    /// @dev Creates a new gen0 kitty with the given genes and
+    /// @dev Creates a new gen0 monster with the given genes and
     ///  creates an auction for it.
     function createGen0Auction(uint256 _genes) external onlyCOO {
         require(promoCreatedCount < PROMO_CREATION_LIMIT);
@@ -676,17 +675,17 @@ contract MonsterMinting is MonsterAuction {
 
 
 
-/// @title CryptoKitties: Collectible, breedable, and oh-so-adorable cats on the Ethereum blockchain.
+/// @title MonsterBit: Collectible, breedable, and oh-so-adorable monsters on the Ethereum blockchain.
 /// @author Axiom Zen (https://www.axiomzen.co)
-/// @dev The main CryptoKitties contract, keeps track of kittens so they don't wander around and get lost.
+/// @dev The main MonsterBit contract, keeps track of monsters so they don't wander around and get lost.
 contract MonsterCore is MonsterMinting {
 
-    // This is the main CryptoKitties contract. In order to keep our code seperated into logical sections,
+    // This is the main MonsterBit contract. In order to keep our code seperated into logical sections,
     // we've broken it up in two ways. First, we have several seperately-instantiated sibling contracts
     // that handle auctions and our super-top-secret genetic combination algorithm. The auctions are
     // seperate since their logic is somewhat complex and there's always a risk of subtle bugs. By keeping
     // them in their own contracts, we can upgrade them without disrupting the main contract that tracks
-    // kitty ownership. The genetic combination algorithm is kept seperate so we can open-source all of
+    // monster ownership. The genetic combination algorithm is kept seperate so we can open-source all of
     // the rest of our code without making it _too_ easy for folks to figure out how the genetics work.
     // Don't worry, I'm sure someone will reverse engineer it soon enough!
     //
@@ -694,35 +693,35 @@ contract MonsterCore is MonsterMinting {
     // facet of functionality of CK. This allows us to keep related code bundled together while still
     // avoiding a single giant file with everything in it. The breakdown is as follows:
     //
-    //      - KittyBase: This is where we define the most fundamental code shared throughout the core
+    //      - MonsterBase: This is where we define the most fundamental code shared throughout the core
     //             functionality. This includes our main data storage, constants and data types, plus
     //             internal functions for managing these items.
     //
-    //      - KittyAccessControl: This contract manages the various addresses and constraints for operations
+    //      - MonsterAccessControl: This contract manages the various addresses and constraints for operations
     //             that can be executed only by specific roles. Namely CEO, CFO and COO.
     //
-    //      - KittyOwnership: This provides the methods required for basic non-fungible token
+    //      - MonsterOwnership: This provides the methods required for basic non-fungible token
     //             transactions, following the draft ERC-721 spec (https://github.com/ethereum/EIPs/issues/721).
     //
-    //      - KittyBreeding: This file contains the methods necessary to breed cats together, including
+    //      - MonsterBreeding: This file contains the methods necessary to breed monsters together, including
     //             keeping track of siring offers, and relies on an external genetic combination contract.
     //
-    //      - KittyAuctions: Here we have the public methods for auctioning or bidding on cats or siring
+    //      - MonsterAuctions: Here we have the public methods for auctioning or bidding on monsters or siring
     //             services. The actual auction functionality is handled in two sibling contracts (one
     //             for sales and one for siring), while auction creation and bidding is mostly mediated
     //             through this facet of the core contract.
     //
-    //      - KittyMinting: This final facet contains the functionality we use for creating new gen0 cats.
-    //             We can make up to 5000 "promo" cats that can be given away (especially important when
+    //      - MonsterMinting: This final facet contains the functionality we use for creating new gen0 monsters.
+    //             We can make up to 5000 "promo" monsters that can be given away (especially important when
     //             the community is new), and all others can only be created and then immediately put up
     //             for auction via an algorithmically determined starting price. Regardless of how they
-    //             are created, there is a hard limit of 50k gen0 cats. After that, it's all up to the
+    //             are created, there is a hard limit of 50k gen0 monsters. After that, it's all up to the
     //             community to breed, breed, breed!
 
     // Set in case the core contract is broken and an upgrade is required
     address public newContractAddress;
 
-    /// @notice Creates the main CryptoKitties smart contract instance.
+    /// @notice Creates the main MonsterBit smart contract instance.
     function MonsterCore() public {
         // Starts paused.
         paused = true;
@@ -733,7 +732,7 @@ contract MonsterCore is MonsterMinting {
         // the creator of the contract is also the initial COO
         cooAddress = msg.sender;
 
-        // start with the mythical kitten 0 - so we don't have generation-0 parent issues
+        // start with the mythical monster 0 - so we don't have generation-0 parent issues
         _createMonster(0, uint256(-1), address(0));
     }
 
@@ -758,8 +757,8 @@ contract MonsterCore is MonsterMinting {
         );
     }
 
-    /// @notice Returns all the relevant information about a specific kitty.
-    /// @param _id The ID of the kitty of interest.
+    /// @notice Returns all the relevant information about a specific monster.
+    /// @param _id The ID of the monster of interest.
     function getMonster(uint256 _id)
         external
         view
