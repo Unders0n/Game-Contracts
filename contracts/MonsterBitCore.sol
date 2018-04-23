@@ -149,7 +149,7 @@ contract MonsterBase is AccessControl {
         // The timestamp from the block when this monster came into existence.
         uint64 birthTime;
         
-        // The "generation number" of this monster. Cats minted by the CK contract
+        // The "generation number" of this monster. Monsters minted by the CK contract
         // for sale are called "gen0" and have a generation number of 0. The
         // generation number of all other monsters is the larger of the two generation
         // numbers of their parents, plus one.
