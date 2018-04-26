@@ -626,6 +626,9 @@ contract MonsterMinting is MonsterAuction {
 
 
     // Constants for gen0 auctions.
+    uint256 public constant GEN0_BATMAN_STARTING_PRICE = 10 ether;
+    uint256 public constant GEN0_BATMAN_ENDING_PRICE = 1 ether;
+
     uint256 public constant GEN0_STARTING_PRICE = 1 ether;
     uint256 public constant GEN0_ENDING_PRICE = 0.1 ether;
     uint256 public constant GEN0_AUCTION_DURATION = 30 days;
@@ -651,17 +654,17 @@ contract MonsterMinting is MonsterAuction {
 
     /// @dev Creates a new gen0 monster with the given genes and
     ///  creates an auction for it.
-    function createGen0AuctionCustom(uint256 _genes, uint256 _startingPrice, uint256 _endingPrice, uint256 _duration) external onlyCOO {
+    function createGen0AuctionBatman() external onlyCOO {
         require(promoCreatedCount < PROMO_CREATION_LIMIT);
 
-        uint256 monsterId = _createMonster(0, _genes, address(this));
+        uint256 monsterId = _createMonster(0, 1, address(this));
         _approve(monsterId, saleAuction);
 
         saleAuction.createAuction(
             monsterId,
-            _startingPrice,
-            _endingPrice,
-            _duration,
+            GEN0_BATMAN_STARTING_PRICE,
+            GEN0_BATMAN_ENDING_PRICE,
+            GEN0_AUCTION_DURATION,
             address(this)
         );
 
@@ -689,19 +692,19 @@ contract MonsterMinting is MonsterAuction {
 
         /// @dev Creates a new gen0 monster with the given genes and
     ///  creates an auction for it.
-    function createGen0AuctionsTop100( uint256 _startingPrice, uint256 _endingPrice) external onlyCOO {
+    function createGen0AuctionsN( uint256 _startingN, uint256 _endingN) external onlyCOO {
         require(promoCreatedCount < PROMO_CREATION_LIMIT);
 
 
-        for (uint256 i = 2; i < 100; i++) {
+        for (uint256 i = _startingN; i < _endingN; i++) {
             
             uint256 monsterId = _createMonster(0, i, address(this));
             _approve(monsterId, saleAuction);
 
             saleAuction.createAuction(
                 monsterId,
-                _startingPrice,
-                _endingPrice,
+                GEN0_STARTING_PRICE,
+                GEN0_ENDING_PRICE,
                 GEN0_AUCTION_DURATION,
                 address(this)
             );
