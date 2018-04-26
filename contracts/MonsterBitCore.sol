@@ -626,9 +626,9 @@ contract MonsterMinting is MonsterAuction {
 
 
     // Constants for gen0 auctions.
-    uint256 public constant GEN0_STARTING_PRICE = 10 ether;
+    uint256 public constant GEN0_STARTING_PRICE = 1 ether;
     uint256 public constant GEN0_ENDING_PRICE = 0.1 ether;
-    uint256 public constant GEN0_AUCTION_DURATION = 7 days;
+    uint256 public constant GEN0_AUCTION_DURATION = 30 days;
 
 
     // Counts the number of monsters the contract owner has created.
@@ -653,7 +653,7 @@ contract MonsterMinting is MonsterAuction {
     ///  creates an auction for it.
     function createGen0AuctionCustom(uint256 _genes, uint256 _startingPrice, uint256 _endingPrice, uint256 _duration) external onlyCOO {
         require(promoCreatedCount < PROMO_CREATION_LIMIT);
-        
+
         uint256 monsterId = _createMonster(0, _genes, address(this));
         _approve(monsterId, saleAuction);
 
@@ -687,6 +687,28 @@ contract MonsterMinting is MonsterAuction {
         promoCreatedCount++;
     }
 
+        /// @dev Creates a new gen0 monster with the given genes and
+    ///  creates an auction for it.
+    function createGen0AuctionsTop100( uint256 _startingPrice, uint256 _endingPrice) external onlyCOO {
+        require(promoCreatedCount < PROMO_CREATION_LIMIT);
+
+
+        for (uint256 i = 2; i < 100; i++) {
+            
+            uint256 monsterId = _createMonster(0, i, address(this));
+            _approve(monsterId, saleAuction);
+
+            saleAuction.createAuction(
+                monsterId,
+                _startingPrice,
+                _endingPrice,
+                GEN0_AUCTION_DURATION,
+                address(this)
+            );
+
+            promoCreatedCount++;
+        }
+    }
 }
 
 
