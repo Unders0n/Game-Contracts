@@ -154,7 +154,62 @@ contract MonsterBase is AccessControl {
         // numbers of their parents, plus one.
         // (i.e. max(matron.generation, sire.generation) + 1)
         uint16 generation;
+        
+        // The minimum timestamp after which this monster can engage in breeding
+        // activities again. This same timestamp is used for the pregnancy
+        // timer (for matrons) as well as the siring cooldown.
+        uint64 cooldownEndTimestamp;
+        
+        // The ID of the parents of this monster, set to 0 for gen0 monsters.
+        // Note that using 32-bit unsigned integers limits us to a "mere"
+        // 4 billion monsters. This number might seem small until you realize
+        // that Ethereum currently has a limit of about 500 million
+        // transactions per year! So, this definitely won't be a problem
+        // for several years (even as Ethereum learns to scale).
+        uint32 matronId;
+        uint32 sireId;
+        
+        // Set to the ID of the sire monster for matrons that are pregnant,
+        // zero otherwise. A non-zero value here is how we know a monster
+        // is pregnant. Used to retrieve the genetic material for the new
+        // monster when the birth transpires.
+        uint32 siringWithId;
+        
+        // Set to the index in the cooldown array (see below) that represents
+        // the current cooldown duration for this monster. This starts at zero
+        // for gen0 cats, and is initialized to floor(generation/2) for others.
+        // Incremented by one for each successful breeding action, regardless
+        // of whether this monster is acting as matron or sire.
+        uint16 cooldownIndex;
+        
+        // Monster genetic code for battle attributes
+        uint64 battleGenes;
+        
+        
     }
+    
+    /// @dev A lookup table indicating the cooldown duration after any successful
+    ///  breeding action, called "pregnancy time" for matrons and "siring cooldown"
+    ///  for sires. Designed such that the cooldown roughly doubles each time a monster
+    ///  is bred, encouraging owners not to just keep breeding the same monster over
+    ///  and over again. Caps out at one week (a cat monster breed an unbounded number
+    ///  of times, and the maximum cooldown is always seven days).
+    uint32[14] public cooldowns = [
+        uint32(1 minutes),
+        uint32(2 minutes),
+        uint32(5 minutes),
+        uint32(10 minutes),
+        uint32(30 minutes),
+        uint32(1 hours),
+        uint32(2 hours),
+        uint32(4 hours),
+        uint32(8 hours),
+        uint32(16 hours),
+        uint32(1 days),
+        uint32(2 days),
+        uint32(4 days),
+        uint32(7 days)
+    ];
 
 
     // An approximation of currently how many seconds are in between blocks.
@@ -181,6 +236,11 @@ contract MonsterBase is AccessControl {
     ///  transferFrom(). Each Monster can only have one approved address for transfer
     ///  at any time. A zero value means no approval is outstanding.
     mapping (uint256 => address) public monsterIndexToApproved;
+    
+    /// @dev A mapping from MonsterIDs to an address that has been approved to use
+    ///  this monster for siring via breedWith(). Each monster can only have one approved
+    ///  address for siring at any time. A zero value means no approval is outstanding.
+    mapping (uint256 => address) public sireAllowedToAddress;
 
     /// @dev The address of the ClockAuction contract that handles sales of Monsters. This
     ///  same contract handles both peer-to-peer sales as well as the gen0 sales which are
@@ -201,7 +261,7 @@ contract MonsterBase is AccessControl {
             delete monsterIndexToApproved[_tokenId];
         }
         // Emit the transfer event.
-        Transfer(_from, _to, _tokenId);
+        emit Transfer(_from, _to, _tokenId);
     }
 
     /// @dev An internal method that creates a new monster and stores it. This
@@ -212,8 +272,11 @@ contract MonsterBase is AccessControl {
     /// @param _genes The monster's genetic code.
     /// @param _owner The inital owner of this monster, must be non-zero (except for the unMonster, ID 0)
     function _createMonster(
+        uint256 _matronId,
+        uint256 _sireId,
         uint256 _generation,
         uint256 _genes,
+        uint256 _battleGenes,
         address _owner
     )
         internal
@@ -223,6 +286,9 @@ contract MonsterBase is AccessControl {
         // sure that these conditions are never broken. However! _createMonster() is already
         // an expensive call (for storage), and it doesn't hurt to be especially careful
         // to ensure our data structures are always valid.
+        
+        require(_matronId == uint256(uint32(_matronId)));
+        require(_sireId == uint256(uint32(_sireId)));
         require(_generation == uint256(uint16(_generation)));
 
         // New monster starts with the same cooldown as parent gen/2
@@ -234,7 +300,13 @@ contract MonsterBase is AccessControl {
         Monster memory _monster = Monster({
             genes: _genes,
             birthTime: uint64(now),
-            generation: uint16(_generation)
+            cooldownEndTimestamp: 0,
+            matronId: uint32(_matronId),
+            sireId: uint32(_sireId),
+            siringWithId: 0,
+            cooldownIndex: cooldownIndex,
+            generation: uint16(_generation),
+            battleGenes: uint64(_battleGenes)
         });
         uint256 newMonsterId = monsters.push(_monster) - 1;
 
@@ -243,7 +315,7 @@ contract MonsterBase is AccessControl {
         require(newMonsterId == uint256(uint32(newMonsterId)));
 
         // emit the birth event
-        Birth(
+        emit Birth(
             _owner,
             newMonsterId,
             _monster.genes
@@ -265,7 +337,7 @@ contract MonsterBase is AccessControl {
 ///  it has one function that will return the data as bytes.
 contract ERC721Metadata {
     /// @dev Given a token Id, returns a byte array that is supposed to be converted into string.
-    function getMetadata(uint256 _tokenId, string) public view returns (bytes32[4] buffer, uint256 count) {
+    function getMetadata(uint256 _tokenId, string) public pure returns (bytes32[4] buffer, uint256 count) {
         if (_tokenId == 1) {
             buffer[0] = "Hello World! :D";
             count = 15;
@@ -415,7 +487,7 @@ contract MonsterOwnership is MonsterBase, ERC721 {
         _approve(_tokenId, _to);
 
         // Emit approval event.
-        Approval(msg.sender, _to, _tokenId);
+        emit Approval(msg.sender, _to, _tokenId);
     }
 
     /// @notice Transfer a Monster owned by another address, for which the calling address
@@ -500,7 +572,7 @@ contract MonsterOwnership is MonsterBase, ERC721 {
     /// @dev Adapted from memcpy() by @arachnid (Nick Johnson <arachnid@notdot.net>)
     ///  This method is licenced under the Apache License.
     ///  Ref: https://github.com/Arachnid/solidity-stringutils/blob/2f6ca9accb48ae14c66f1437ec50ed19a0616f78/strings.sol
-    function _memcpy(uint _dest, uint _src, uint _len) private view {
+    function _memcpy(uint _dest, uint _src, uint _len) private pure {
         // Copy word-length chunks while possible
         for(; _len >= 32; _len -= 32) {
             assembly {
@@ -522,8 +594,8 @@ contract MonsterOwnership is MonsterBase, ERC721 {
     /// @dev Adapted from toString(slice) by @arachnid (Nick Johnson <arachnid@notdot.net>)
     ///  This method is licenced under the Apache License.
     ///  Ref: https://github.com/Arachnid/solidity-stringutils/blob/2f6ca9accb48ae14c66f1437ec50ed19a0616f78/strings.sol
-    function _toString(bytes32[4] _rawBytes, uint256 _stringLength) private view returns (string) {
-        var outputString = new string(_stringLength);
+    function _toString(bytes32[4] _rawBytes, uint256 _stringLength) private pure returns (string) {
+        string memory outputString = new string(_stringLength);
         uint256 outputPtr;
         uint256 bytesPtr;
 
@@ -551,12 +623,352 @@ contract MonsterOwnership is MonsterBase, ERC721 {
 }
 
 
+/// @title SEKRETOOOO
+contract MonsterGeneticsInterface {
+    /// @dev simply a boolean to indicate this is the contract we expect to be
+    function isMonsterGenetics() public pure returns (bool);
+
+    /// @dev given genes of monster 1 & 2, return a genetic combination - may have a random factor
+    /// @param genesMatron genes of mom
+    /// @param genesSire genes of sire
+    /// @return the genes that are supposed to be passed down the child
+    function mixGenes(uint256 genesMatron, uint256 genesSire, uint256 targetBlock) public view returns (uint256 _result);
+}
+
+
+
+/// @title A facet of MosterBitCore that manages Monster siring, gestation, and birth.
+contract MonsterBreeding is MonsterOwnership {
+
+    /// @dev The Pregnant event is fired when two monster successfully breed and the pregnancy
+    ///  timer begins for the matron.
+    event Pregnant(address owner, uint256 matronId, uint256 sireId, uint256 cooldownEndTimestamp);
+
+    /// @notice The minimum payment required to use breedWithAuto(). This fee goes towards
+    ///  the gas cost paid by whatever calls giveBirth(), and can be dynamically updated by
+    ///  the COO role as the gas price changes.
+    uint256 public autoBirthFee = 2 finney;
+
+    // Keeps track of number of pregnant kitties.
+    uint256 public pregnantMonsters;
+
+    /// @dev The address of the sibling contract that is used to implement the sooper-sekret
+    ///  genetic combination algorithm.
+    MonsterGeneticsInterface public geneScience;
+
+    /// @dev Update the address of the genetic contract, can only be called by the CEO.
+    /// @param _address An address of a GeneScience contract instance to be used from this point forward.
+    function setGeneScienceAddress(address _address) external onlyCEO {
+        MonsterGeneticsInterface candidateContract = MonsterGeneticsInterface(_address);
+
+        // NOTE: verify that a contract is what we expect
+        require(candidateContract.isMonsterGenetics());
+
+        // Set the new contract address
+        geneScience = candidateContract;
+    }
+
+    /// @dev Checks that a given monster is able to breed. Requires that the
+    ///  current cooldown is finished (for sires) and also checks that there is
+    ///  no pending pregnancy.
+    function _isReadyToBreed(Monster _monster) internal view returns (bool) {
+        // In addition to checking the cooldownEndTimestamp, we also need to check to see if
+        // the cat has a pending birth; there can be some period of time between the end
+        // of the pregnacy timer and the birth event.
+        return (_monster.siringWithId == 0) && (_monster.cooldownEndTimestamp <= uint64(now));
+    }
+
+    /// @dev Check if a sire has authorized breeding with this matron. True if both sire
+    ///  and matron have the same owner, or if the sire has given siring permission to
+    ///  the matron's owner (via approveSiring()).
+    function _isSiringPermitted(uint256 _sireId, uint256 _matronId) internal view returns (bool) {
+        address matronOwner = monsterIndexToOwner[_matronId];
+        address sireOwner = monsterIndexToOwner[_sireId];
+
+        // Siring is okay if they have same owner, or if the matron's owner was given
+        // permission to breed with this sire.
+        return (matronOwner == sireOwner || sireAllowedToAddress[_sireId] == matronOwner);
+    }
+
+    /// @dev Set the cooldownEndTime for the given monster, based on its current cooldownIndex.
+    ///  Also increments the cooldownIndex (unless it has hit the cap).
+    /// @param _monster A reference to the monster in storage which needs its timer started.
+    function _triggerCooldown(Monster storage _monster) internal {
+        // Compute an estimation of the cooldown time in seconds.
+        _monster.cooldownEndTimestamp = uint64(cooldowns[_monster.cooldownIndex] + now);
+
+        // Increment the breeding count, clamping it at 13, which is the length of the
+        // cooldowns array. We could check the array size dynamically, but hard-coding
+        // this as a constant saves gas. Yay, Solidity!
+        if (_monster.cooldownIndex < 13) {
+            _monster.cooldownIndex += 1;
+        }
+    }
+
+    /// @notice Grants approval to another user to sire with one of your monsters.
+    /// @param _addr The address that will be able to sire with your monster. Set to
+    ///  address(0) to clear all siring approvals for this monster.
+    /// @param _sireId A monster that you own that _addr will now be able to sire with.
+    function approveSiring(address _addr, uint256 _sireId)
+        external
+        whenNotPaused
+    {
+        require(_owns(msg.sender, _sireId));
+        sireAllowedToAddress[_sireId] = _addr;
+    }
+
+    /// @dev Updates the minimum payment required for calling giveBirthAuto(). Can only
+    ///  be called by the COO address. (This fee is used to offset the gas cost incurred
+    ///  by the autobirth daemon).
+    function setAutoBirthFee(uint256 val) external onlyCOO {
+        autoBirthFee = val;
+    }
+
+    /// @dev Checks to see if a given monster is pregnant and (if so) if the gestation
+    ///  period has passed.
+    function _isReadyToGiveBirth(Monster _matron) private view returns (bool) {
+        return (_matron.siringWithId != 0) && (_matron.cooldownEndTimestamp <= now);
+    }
+
+    /// @notice Checks that a given monster is able to breed (i.e. it is not pregnant or
+    ///  in the middle of a siring cooldown).
+    /// @param _monsterId reference the id of the monster, any user can inquire about it
+    function isReadyToBreed(uint256 _monsterId)
+        public
+        view
+        returns (bool)
+    {
+        require(_monsterId > 0);
+        Monster storage monster = monsters[_monsterId];
+        return _isReadyToBreed(monster);
+    }
+
+    /// @dev Checks whether a monster is currently pregnant.
+    /// @param _monsterId reference the id of the monster, any user can inquire about it
+    function isPregnant(uint256 _monsterId)
+        public
+        view
+        returns (bool)
+    {
+        require(_monsterId > 0);
+        // A monster is pregnant if and only if this field is set
+        return monsters[_monsterId].siringWithId != 0;
+    }
+
+    /// @dev Internal check to see if a given sire and matron are a valid mating pair. DOES NOT
+    ///  check ownership permissions (that is up to the caller).
+    /// @param _matron A reference to the monster struct of the potential matron.
+    /// @param _matronId The matron's ID.
+    /// @param _sire A reference to the monster struct of the potential sire.
+    /// @param _sireId The sire's ID
+    function _isValidMatingPair(
+        Monster storage _matron,
+        uint256 _matronId,
+        Monster storage _sire,
+        uint256 _sireId
+    )
+        private
+        view
+        returns(bool)
+    {
+        // A monster can't breed with itself!
+        if (_matronId == _sireId) {
+            return false;
+        }
+
+        // monsters can't breed with their parents.
+        if (_matron.matronId == _sireId || _matron.sireId == _sireId) {
+            return false;
+        }
+        if (_sire.matronId == _matronId || _sire.sireId == _matronId) {
+            return false;
+        }
+
+        // We can short circuit the sibling check (below) if either cat is
+        // gen zero (has a matron ID of zero).
+        if (_sire.matronId == 0 || _matron.matronId == 0) {
+            return true;
+        }
+
+        // monster can't breed with full or half siblings.
+        if (_sire.matronId == _matron.matronId || _sire.matronId == _matron.sireId) {
+            return false;
+        }
+        if (_sire.sireId == _matron.matronId || _sire.sireId == _matron.sireId) {
+            return false;
+        }
+
+        // Everything seems cool! Let's get DTF.
+        return true;
+    }
+
+    /// @dev Internal check to see if a given sire and matron are a valid mating pair for
+    ///  breeding via auction (i.e. skips ownership and siring approval checks).
+    function _canBreedWithViaAuction(uint256 _matronId, uint256 _sireId)
+        internal
+        view
+        returns (bool)
+    {
+        Monster storage matron = monsters[_matronId];
+        Monster storage sire = monsters[_sireId];
+        return _isValidMatingPair(matron, _matronId, sire, _sireId);
+    }
+
+    /// @notice Checks to see if two monsters can breed together, including checks for
+    ///  ownership and siring approvals. Does NOT check that both cats are ready for
+    ///  breeding (i.e. breedWith could still fail until the cooldowns are finished).
+    /// @param _matronId The ID of the proposed matron.
+    /// @param _sireId The ID of the proposed sire.
+    function canBreedWith(uint256 _matronId, uint256 _sireId)
+        external
+        view
+        returns(bool)
+    {
+        require(_matronId > 0);
+        require(_sireId > 0);
+        Monster storage matron = monsters[_matronId];
+        Monster storage sire = monsters[_sireId];
+        return _isValidMatingPair(matron, _matronId, sire, _sireId) &&
+            _isSiringPermitted(_sireId, _matronId);
+    }
+
+    /// @dev Internal utility function to initiate breeding, assumes that all breeding
+    ///  requirements have been checked.
+    function _breedWith(uint256 _matronId, uint256 _sireId) internal {
+        // Grab a reference to the Kitties from storage.
+        Monster storage sire = monsters[_sireId];
+        Monster storage matron = monsters[_matronId];
+
+        // Mark the matron as pregnant, keeping track of who the sire is.
+        matron.siringWithId = uint32(_sireId);
+
+        // Trigger the cooldown for both parents.
+        _triggerCooldown(sire);
+        _triggerCooldown(matron);
+
+        // Clear siring permission for both parents. This may not be strictly necessary
+        // but it's likely to avoid confusion!
+        delete sireAllowedToAddress[_matronId];
+        delete sireAllowedToAddress[_sireId];
+
+        // Emit the pregnancy event.
+        emit Pregnant(monsterIndexToOwner[_matronId], _matronId, _sireId, matron.cooldownEndTimestamp);
+    }
+
+    /// @notice Breed a monster you own (as matron) with a sire that you own, or for which you
+    ///  have previously been given Siring approval. Will either make your monster pregnant, or will
+    ///  fail entirely. Requires a pre-payment of the fee given out to the first caller of giveBirth()
+    /// @param _matronId The ID of the monster acting as matron (will end up pregnant if successful)
+    /// @param _sireId The ID of the monster acting as sire (will begin its siring cooldown if successful)
+    function breedWithAuto(uint256 _matronId, uint256 _sireId)
+        external
+        payable
+        whenNotPaused
+    {
+        // Checks for payment.
+        require(msg.value >= autoBirthFee);
+
+        // Caller must own the matron.
+        require(_owns(msg.sender, _matronId));
+
+        // Neither sire nor matron are allowed to be on auction during a normal
+        // breeding operation, but we don't need to check that explicitly.
+        // For matron: The caller of this function can't be the owner of the matron
+        //   because the owner of a Kitty on auction is the auction house, and the
+        //   auction house will never call breedWith().
+        // For sire: Similarly, a sire on auction will be owned by the auction house
+        //   and the act of transferring ownership will have cleared any oustanding
+        //   siring approval.
+        // Thus we don't need to spend gas explicitly checking to see if either cat
+        // is on auction.
+
+        // Check that matron and sire are both owned by caller, or that the sire
+        // has given siring permission to caller (i.e. matron's owner).
+        // Will fail for _sireId = 0
+        require(_isSiringPermitted(_sireId, _matronId));
+
+        // Grab a reference to the potential matron
+        Monster storage matron = monsters[_matronId];
+
+        // Make sure matron isn't pregnant, or in the middle of a siring cooldown
+        require(_isReadyToBreed(matron));
+
+        // Grab a reference to the potential sire
+        Monster storage sire = monsters[_sireId];
+
+        // Make sure sire isn't pregnant, or in the middle of a siring cooldown
+        require(_isReadyToBreed(sire));
+
+        // Test that these cats are a valid mating pair.
+        require(_isValidMatingPair(
+            matron,
+            _matronId,
+            sire,
+            _sireId
+        ));
+
+        // All checks passed, kitty gets pregnant!
+        _breedWith(_matronId, _sireId);
+    }
+
+    /// @notice Have a pregnant monster give birth!
+    /// @param _matronId A monster ready to give birth.
+    /// @return The monster ID of the new monster.
+    /// @dev Looks at a given monster and, if pregnant and if the gestation period has passed,
+    ///  combines the genes of the two parents to create a new monster. The new monster is assigned
+    ///  to the current owner of the matron. Upon successful completion, both the matron and the
+    ///  new monster will be ready to breed again. Note that anyone can call this function (if they
+    ///  are willing to pay the gas!), but the new monster always goes to the mother's owner.
+    function giveBirth(uint256 _matronId)
+        external
+        whenNotPaused
+        returns(uint256)
+    {
+        // Grab a reference to the matron in storage.
+        Monster storage matron = monsters[_matronId];
+
+        // Check that the matron is a valid cat.
+        require(matron.birthTime != 0);
+
+        // Check that the matron is pregnant, and that its time has come!
+        require(_isReadyToGiveBirth(matron));
+
+        // Grab a reference to the sire in storage.
+        uint256 sireId = matron.siringWithId;
+        Monster storage sire = monsters[sireId];
+
+        // Determine the higher generation number of the two parents
+        uint16 parentGen = matron.generation;
+        if (sire.generation > matron.generation) {
+            parentGen = sire.generation;
+        }
+
+        // Call the sooper-sekret gene mixing operation.
+        uint256 childGenes = geneScience.mixGenes(matron.genes, sire.genes, block.number - 1);
+
+        // Make the new kitten!
+        address owner = monsterIndexToOwner[_matronId];
+        uint256 monsterId = _createMonster(_matronId, matron.siringWithId, parentGen + 1, childGenes, 0, owner);
+
+        // Clear the reference to sire from the matron (REQUIRED! Having siringWithId
+        // set is what marks a matron as being pregnant.)
+        delete matron.siringWithId;
+
+        
+        // Send the balance fee to the person who made birth happen.
+        msg.sender.transfer(autoBirthFee);
+
+        // return the new kitten's ID
+        return monsterId;
+    }
+}
+
 
 
 /// @title Handles creating auctions for sale and siring of monsters.
 ///  This wrapper of ReverseAuction exists only so that users can create
 ///  auctions with only one transaction.
-contract MonsterAuction is MonsterOwnership {
+contract MonsterAuction is MonsterBreeding {
 
     // @notice The auction contract variables are defined in MonsterBase to allow
     //  us to refer to them in MonsterOwnership to prevent accidental transfers.
@@ -623,6 +1035,7 @@ contract MonsterMinting is MonsterAuction {
 
     // Limits the number of monsters the contract owner can ever create.
     uint256 public constant PROMO_CREATION_LIMIT = 1000;
+    uint256 public constant GEN0_CREATION_LIMIT = 45000;
 
 
     // Constants for gen0 auctions.
@@ -636,6 +1049,7 @@ contract MonsterMinting is MonsterAuction {
 
     // Counts the number of monsters the contract owner has created.
     uint256 public promoCreatedCount;
+    uint256 public gen0CreatedCount;
 
 
     /// @dev we can create promo monsters, up to a limit. Only callable by COO
@@ -649,34 +1063,34 @@ contract MonsterMinting is MonsterAuction {
         require(promoCreatedCount < PROMO_CREATION_LIMIT);
 
         promoCreatedCount++;
-        _createMonster(0, _genes, monsterOwner);
+        _createMonster(0, 0, 0, _genes, 0, monsterOwner);
     }
-
+    
     /// @dev Creates a new gen0 monster with the given genes and
     ///  creates an auction for it.
-    function createGen0AuctionBatman() external onlyCOO {
-        require(promoCreatedCount < PROMO_CREATION_LIMIT);
+    function createGen0AuctionCustom(uint _genes, uint _startingPrice, uint _endingPrice, uint _duration) external onlyCOO {
+        require(gen0CreatedCount < GEN0_CREATION_LIMIT);
 
-        uint256 monsterId = _createMonster(0, 1, address(this));
+        uint256 monsterId = _createMonster(0, 0, 0, _genes, 0, address(this));
         _approve(monsterId, saleAuction);
 
         saleAuction.createAuction(
             monsterId,
-            GEN0_BATMAN_STARTING_PRICE,
-            GEN0_BATMAN_ENDING_PRICE,
-            GEN0_AUCTION_DURATION,
+            _startingPrice,
+            _endingPrice,
+            _duration,
             address(this)
         );
 
-        promoCreatedCount++;
+        gen0CreatedCount++;
     }
 
     /// @dev Creates a new gen0 monster with the given genes and
     ///  creates an auction for it.
     function createGen0Auction(uint256 _genes) external onlyCOO {
-        require(promoCreatedCount < PROMO_CREATION_LIMIT);
+        require(gen0CreatedCount < GEN0_CREATION_LIMIT);
 
-        uint256 monsterId = _createMonster(0, _genes, address(this));
+        uint256 monsterId = _createMonster(0, 0, 0, _genes, 0, address(this));
         _approve(monsterId, saleAuction);
 
         saleAuction.createAuction(
@@ -687,18 +1101,18 @@ contract MonsterMinting is MonsterAuction {
             address(this)
         );
 
-        promoCreatedCount++;
+        gen0CreatedCount++;
     }
 
-        /// @dev Creates a new gen0 monster with the given genes and
+    /// @dev Creates a new gen0 monster with the given genes and
     ///  creates an auction for it.
     function createGen0AuctionsN( uint256 _startingN, uint256 _endingN) external onlyCOO {
-        require(promoCreatedCount < PROMO_CREATION_LIMIT);
+        require(gen0CreatedCount < GEN0_CREATION_LIMIT);
 
 
         for (uint256 i = _startingN; i < _endingN; i++) {
             
-            uint256 monsterId = _createMonster(0, i, address(this));
+            uint256 monsterId = _createMonster(0, 0, 0, i, 0, address(this));
             _approve(monsterId, saleAuction);
 
             saleAuction.createAuction(
@@ -709,7 +1123,7 @@ contract MonsterMinting is MonsterAuction {
                 address(this)
             );
 
-            promoCreatedCount++;
+            gen0CreatedCount++;
         }
     }
 }
@@ -763,7 +1177,7 @@ contract MonsterCore is MonsterMinting {
     address public newContractAddress;
 
     /// @notice Creates the main MonsterBit smart contract instance.
-    function MonsterCore() public {
+    constructor() public {
         // Starts paused.
         paused = true;
 
@@ -774,7 +1188,7 @@ contract MonsterCore is MonsterMinting {
         cooAddress = msg.sender;
 
         // start with the mythical monster 0 - so we don't have generation-0 parent issues
-        _createMonster(0, uint256(-1), address(0));
+        _createMonster(0, 0, 0, uint256(-1), 0, address(0));
     }
 
     /// @dev Used to mark the smart contract as upgraded, in case there is a serious
@@ -786,7 +1200,7 @@ contract MonsterCore is MonsterMinting {
     function setNewAddress(address _v2Address) external onlyCEO whenPaused {
         // See README.md for updgrade plan
         newContractAddress = _v2Address;
-        ContractUpgrade(_v2Address);
+        emit ContractUpgrade(_v2Address);
     }
 
     /// @notice No tipping!
@@ -830,8 +1244,8 @@ contract MonsterCore is MonsterMinting {
 
     // @dev Allows the CFO to capture the balance available to the contract.
     function withdrawBalance() external onlyCFO {
-        uint256 balance = this.balance;
-        cfoAddress.send(balance);
+        uint256 balance = address(this).balance;
+        cfoAddress.transfer(balance);
     }
 }
 

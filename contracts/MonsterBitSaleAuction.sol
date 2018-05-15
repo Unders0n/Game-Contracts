@@ -74,7 +74,7 @@ contract ClockAuctionBase {
 
         tokenIdToAuction[_tokenId] = _auction;
 
-        AuctionCreated(
+        emit AuctionCreated(
             uint256(_tokenId),
             uint256(_auction.startingPrice),
             uint256(_auction.endingPrice),
@@ -86,7 +86,7 @@ contract ClockAuctionBase {
     function _cancelAuction(uint256 _tokenId, address _seller) internal {
         _removeAuction(_tokenId);
         _transfer(_seller, _tokenId);
-        AuctionCancelled(_tokenId);
+        emit AuctionCancelled(_tokenId);
     }
 
     /// @dev Computes the price and transfers winnings.
@@ -147,7 +147,7 @@ contract ClockAuctionBase {
         msg.sender.transfer(bidExcess);
 
         // Tell the world!
-        AuctionSuccessful(_tokenId, price, msg.sender);
+        emit AuctionSuccessful(_tokenId, price, msg.sender);
 
         return price;
     }
@@ -262,7 +262,7 @@ contract ClockAuction is Pausable, ClockAuctionBase {
     ///  the Nonfungible Interface.
     /// @param _cut - percent cut the owner takes on each auction, must be
     ///  between 0-10,000.
-    function ClockAuction(address _nftAddress, uint256 _cut) public {
+    constructor(address _nftAddress, uint256 _cut) public {
         require(_cut <= 10000);
         ownerCut = _cut;
 
@@ -283,7 +283,7 @@ contract ClockAuction is Pausable, ClockAuctionBase {
             msg.sender == nftAddress
         );
         // We are using this boolean method to make sure that even if one fails it will still work
-        bool res = nftAddress.send(this.balance);
+        nftAddress.transfer(address(this).balance);
     }
 
     /// @dev Creates and begins a new auction.
@@ -414,7 +414,7 @@ contract SaleClockAuction is ClockAuction {
 
 
     // Delegate constructor
-    function SaleClockAuction(address _nftAddr, uint256 _cut) public
+    constructor(address _nftAddr, uint256 _cut) public
         ClockAuction(_nftAddr, _cut) {}
 
     /// @dev Creates and begins a new auction.
@@ -465,4 +465,67 @@ contract SaleClockAuction is ClockAuction {
 }
 
 
+/// @title Reverse auction modified for siring
+/// @notice We omit a fallback function to prevent accidental sends to this contract.
+contract SiringClockAuction is ClockAuction {
 
+    // @dev Sanity check that allows us to ensure that we are pointing to the
+    //  right auction in our setSiringAuctionAddress() call.
+    bool public isSiringClockAuction = true;
+
+    // Delegate constructor
+    constructor(address _nftAddr, uint256 _cut) public
+        ClockAuction(_nftAddr, _cut) {}
+
+    /// @dev Creates and begins a new auction. Since this function is wrapped,
+    /// require sender to be MonsterBitCore contract.
+    /// @param _tokenId - ID of token to auction, sender must be owner.
+    /// @param _startingPrice - Price of item (in wei) at beginning of auction.
+    /// @param _endingPrice - Price of item (in wei) at end of auction.
+    /// @param _duration - Length of auction (in seconds).
+    /// @param _seller - Seller, if not the message sender
+    function createAuction(
+        uint256 _tokenId,
+        uint256 _startingPrice,
+        uint256 _endingPrice,
+        uint256 _duration,
+        address _seller
+    )
+        external
+    {
+        // Sanity check that no inputs overflow how many bits we've allocated
+        // to store them in the auction struct.
+        require(_startingPrice == uint256(uint128(_startingPrice)));
+        require(_endingPrice == uint256(uint128(_endingPrice)));
+        require(_duration == uint256(uint64(_duration)));
+
+        require(msg.sender == address(nonFungibleContract));
+        _escrow(_seller, _tokenId);
+        Auction memory auction = Auction(
+            _seller,
+            uint128(_startingPrice),
+            uint128(_endingPrice),
+            uint64(_duration),
+            uint64(now)
+        );
+        _addAuction(_tokenId, auction);
+    }
+
+    /// @dev Places a bid for siring. Requires the sender
+    /// is the MonsterBitCore contract because all bid methods
+    /// should be wrapped. Also returns the monster to the
+    /// seller rather than the winner.
+    function bid(uint256 _tokenId)
+        external
+        payable
+    {
+        require(msg.sender == address(nonFungibleContract));
+        address seller = tokenIdToAuction[_tokenId].seller;
+        // _bid checks that token ID is valid and will throw if bid fails
+        _bid(_tokenId, msg.value);
+        // We transfer the kitty back to the seller, the winner will get
+        // the offspring
+        _transfer(seller, _tokenId);
+    }
+
+}
