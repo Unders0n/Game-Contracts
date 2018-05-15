@@ -185,7 +185,7 @@ contract MonsterBase is AccessControl {
         // Monster genetic code for battle attributes
         uint64 battleGenes;
         
-        
+        uint8 level;
     }
     
     /// @dev A lookup table indicating the cooldown duration after any successful
@@ -210,6 +210,8 @@ contract MonsterBase is AccessControl {
         uint32(4 days),
         uint32(7 days)
     ];
+    
+    uint32[2] public levelScores = [1000, 2000]
 
 
     // An approximation of currently how many seconds are in between blocks.
@@ -1024,6 +1026,7 @@ contract MonsterAuction is MonsterBreeding {
     /// prevent two transfer calls in the auction bid function.
     function withdrawAuctionBalances() external onlyCLevel {
         saleAuction.withdrawBalance();
+        siringAuction.withdrawBalance();
     }
 }
 
