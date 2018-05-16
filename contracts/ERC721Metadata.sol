@@ -1,4 +1,4 @@
-pragma solidity ^0.4.23;
+﻿pragma solidity ^0.4.23;
 
 /// @title The external contract that is responsible for generating metadata for the monsters,
 ///  it has one function that will return the data as bytes.
