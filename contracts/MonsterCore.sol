@@ -84,6 +84,8 @@ contract MonsterCore is MonsterMinting {
             msg.sender == address(saleAuction)
             ||
             msg.sender == address(siringAuction)
+            ||
+            msg.sender == address(battlesContract)
         );
     }
 
@@ -95,13 +97,30 @@ contract MonsterCore is MonsterMinting {
         returns (
         uint256 birthTime,
         uint256 generation,
-        uint256 genes
+        uint256 genes,
+        uint256 battleGenes,
+        uint256 cooldownIndex,
+        uint256 cooldownEndTimestamp,
+        uint256 matronId,
+        uint256 sireId,
+        uint256 siringWithId,
+        uint256 growScore,
+        uint256 level
+        
     ) {
         Monster storage mon = monsters[_id];
 
         birthTime = uint256(mon.birthTime);
         generation = uint256(mon.generation);
         genes = mon.genes;
+        cooldownEndTimestamp = mon.cooldownEndTimestamp;
+        matronId = mon.matronId;
+        sireId = mon.sireId;
+        siringWithId = mon.siringWithId;
+        cooldownIndex = mon.cooldownIndex;
+        battleGenes = mon.battleGenes;
+        growScore = mon.growScore;
+        level = mon.level;
     }
 
     /// @dev Override unpause so it requires all external contract addresses
@@ -126,4 +145,17 @@ contract MonsterCore is MonsterMinting {
         uint256 balance = address(this).balance;
         cfoAddress.transfer(balance);
     }
+    
+    /// @dev Transfers the balance of the sale auction contract
+    /// to the MonsterCore contract. We use two-step withdrawal to
+    /// prevent two transfer calls in the auction bid function.
+    function withdrawDependentBalances() external onlyCLevel {
+        saleAuction.withdrawBalance();
+        siringAuction.withdrawBalance();
+        battlesContract.withdrawBalance();
+    }
 }
+
+
+
+

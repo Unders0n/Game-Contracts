@@ -32,7 +32,7 @@ contract MonsterGenetics {
     function mixGenes(uint256 genesMatron, uint256 genesSire, uint256 targetBlock) public view returns (uint256 _result)
     {
         //this hash is calculated from input data and it's bits will be used as random numbers
-        uint randomSource = uint256(keccak256(blockhash(targetBlock), genesMatron, genesSire, targetBlock));
+        uint randomSource = uint256(keccak256(abi.encodePacked(blockhash(targetBlock), genesMatron, genesSire, targetBlock)));
         uint8 randomIndex = 0;
         uint randomValue = 0;
 

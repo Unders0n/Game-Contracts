@@ -4,6 +4,7 @@ import "./MonsterAccessControl.sol";
 import "./MonsterBitSaleAuction.sol";
 import "./MonsterBattles.sol";
 import "./MonsterFood.sol";
+import "./MonsterGeneticsInterface.sol";
 
 /// @title Base contract for MonsterBit. Holds all common structs, events and base variables.
 /// @dev See the MonsterCore contract documentation to understand how the various contract facets are arranged.
@@ -71,7 +72,7 @@ contract MonsterBase is MonsterAccessControl {
         // Monster genetic code for battle attributes
         uint64 battleGenes;
         
-        uint8 growScore;
+        uint16 growScore;
         uint8 level;
     }
     
@@ -134,6 +135,10 @@ contract MonsterBase is MonsterAccessControl {
     SiringClockAuction public siringAuction;
     MonsterBattles public battlesContract;
     MonsterFood public monsterFood;
+    
+    /// @dev The address of the sibling contract that is used to implement the sooper-sekret
+    ///  genetic combination algorithm.
+    MonsterGeneticsInterface public geneScience;
 
 
     /// @dev Assigns ownership of a specific Monster to an address.

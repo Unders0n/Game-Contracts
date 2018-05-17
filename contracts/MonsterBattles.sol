@@ -5,14 +5,13 @@ import "./ERC721.sol";
 contract MonsterBattles {
     // Reference to contract tracking NFT ownership
     ERC721 public nonFungibleContract;
-    bytes4 constant InterfaceSignature_ERC721 = bytes4(0x9a20483d);
+    
     bool public isBattleContract = true;
     address public backendAddress;
     address public ownerAddress;
     
     constructor(address _nftAddress) public {
         ERC721 candidateContract = ERC721(_nftAddress);
-        require(candidateContract.supportsInterface(InterfaceSignature_ERC721));
         nonFungibleContract = candidateContract;
         ownerAddress = msg.sender;
         backendAddress = msg.sender;
@@ -33,6 +32,17 @@ contract MonsterBattles {
     modifier onlyProxy() {
         require(msg.sender == address(nonFungibleContract));
         _;
+    }
+    
+    function withdrawBalance() external {
+        address nftAddress = address(nonFungibleContract);
+
+        require(
+            msg.sender == ownerAddress ||
+            msg.sender == nftAddress
+        );
+        // We are using this boolean method to make sure that even if one fails it will still work
+        nftAddress.transfer(address(this).balance);
     }
     
     /// @dev Returns true if the claimant owns the token.

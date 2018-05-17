@@ -251,11 +251,7 @@ contract ClockAuctionBase {
 /// @notice We omit a fallback function to prevent accidental sends to this contract.
 contract ClockAuction is Pausable, ClockAuctionBase {
 
-    /// @dev The ERC-165 interface signature for ERC-721.
-    ///  Ref: https://github.com/ethereum/EIPs/issues/165
-    ///  Ref: https://github.com/ethereum/EIPs/issues/721
-    bytes4 constant InterfaceSignature_ERC721 = bytes4(0x9a20483d);
-
+    
     /// @dev Constructor creates a reference to the NFT ownership contract
     ///  and verifies the owner cut is in the valid range.
     /// @param _nftAddress - address of a deployed contract implementing
@@ -267,7 +263,6 @@ contract ClockAuction is Pausable, ClockAuctionBase {
         ownerCut = _cut;
 
         ERC721 candidateContract = ERC721(_nftAddress);
-        require(candidateContract.supportsInterface(InterfaceSignature_ERC721));
         nonFungibleContract = candidateContract;
     }
 
@@ -457,8 +452,7 @@ contract SaleClockAuction is ClockAuction {
         payable
     {
         // _bid verifies token ID size
-        address seller = tokenIdToAuction[_tokenId].seller;
-        uint256 price = _bid(_tokenId, msg.value);
+        _bid(_tokenId, msg.value);
         _transfer(msg.sender, _tokenId);
     }
 

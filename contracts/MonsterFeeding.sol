@@ -5,7 +5,8 @@ import "./MonsterFood.sol";
 
 contract MonsterFeeding is MonsterBreeding {
     
-    
+    event LevelUp(uint monsterId, uint level);
+    event MonsterFed(uint monsterId, uint growScore);
     
     
     function setMonsterFeedingAddress(address _address) external onlyCEO {
@@ -18,11 +19,11 @@ contract MonsterFeeding is MonsterBreeding {
         monsterFood = candidateContract;
     }
     
-    function feedMonster(uint _monsterId, uint _foodId) external payable{
+    function feedMonster(uint _monsterId, uint _foodCode) external payable{
         Monster storage monster = monsters[_monsterId];
         require(monster.level < 2);
         
-        (uint feedingScore, uint priceWei, bool exists) = monsterFood.getFood(_foodId);
+        (uint feedingScore, uint priceWei, bool exists) = monsterFood.getFood(_foodCode);
         require(exists);
         
         require(msg.value > priceWei);
@@ -39,9 +40,12 @@ contract MonsterFeeding is MonsterBreeding {
         if(growScore >= levelScores[monster.level]){
             monster.level++;
             monster.growScore = 0;
+            emit LevelUp(_monsterId, monster.level);
         } else{
             monster.growScore += uint8(feedingScore);
         }
+        
+        emit MonsterFed(_monsterId, monster.growScore);
         
     }
 }

@@ -16,9 +16,7 @@ contract MonsterBreeding is MonsterOwnership {
     ///  the COO role as the gas price changes.
     uint256 public autoBirthFee = 2 finney;
 
-    /// @dev The address of the sibling contract that is used to implement the sooper-sekret
-    ///  genetic combination algorithm.
-    MonsterGeneticsInterface public geneScience;
+    
 
     /// @dev Update the address of the genetic contract, can only be called by the CEO.
     /// @param _address An address of a GeneScience contract instance to be used from this point forward.
@@ -30,6 +28,16 @@ contract MonsterBreeding is MonsterOwnership {
 
         // Set the new contract address
         geneScience = candidateContract;
+    }
+    
+    function setSiringAuctionAddress(address _address) external onlyCEO {
+        SiringClockAuction candidateContract = SiringClockAuction(_address);
+
+        // NOTE: verify that a contract is what we expect - https://github.com/Lunyr/crowdsale-contracts/blob/cfadd15986c30521d8ba7d5b6f57b4fefcc7ac38/contracts/LunyrToken.sol#L117
+        require(candidateContract.isSiringClockAuction());
+
+        // Set the new contract address
+        siringAuction = candidateContract;
     }
 
     /// @dev Checks that a given monster is able to breed. Requires that the

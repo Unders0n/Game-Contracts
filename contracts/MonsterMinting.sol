@@ -1,6 +1,7 @@
 ﻿pragma solidity ^0.4.23;
 
 import "./MonsterAuction.sol";
+import "./MonsterOwnership.sol";
 
 /// @title all functions related to creating monsters
 contract MonsterMinting is MonsterAuction {
