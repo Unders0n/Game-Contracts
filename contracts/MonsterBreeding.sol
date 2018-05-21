@@ -317,7 +317,7 @@ contract MonsterBreeding is MonsterOwnership {
 
         // Call the sooper-sekret gene mixing operation.
         uint256 childGenes = geneScience.mixGenes(matron.genes, sire.genes, block.number - 1);
-        uint256 childBattleGenes = geneScience.mixBattleGenes(matron.battleGenes, sire.battleGenes);
+        uint256 childBattleGenes = geneScience.mixBattleGenes(matron.battleGenes, sire.battleGenes, block.number - 1);
 
         // Make the new kitten!
         address owner = monsterIndexToOwner[_matronId];

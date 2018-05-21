@@ -10,5 +10,5 @@ contract MonsterGeneticsInterface {
     /// @return the genes that are supposed to be passed down the child
     function mixGenes(uint256 genesMatron, uint256 genesSire, uint256 targetBlock) public view returns (uint256 _result);
     
-    function mixBattleGenes(uint256 genesMatron, uint256 genesSire) public pure returns (uint256 _result);
+    function mixBattleGenes(uint256 genesMatron, uint256 genesSire, uint256 targetBlock) public view returns (uint256 _result);
 }

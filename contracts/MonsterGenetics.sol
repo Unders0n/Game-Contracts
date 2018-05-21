@@ -5,8 +5,8 @@ contract MonsterGenetics {
     
     //size of a gene in bits. 6 bits provide 64 variants of gene
     uint8 constant geneBits = 6;
-    uint8 constant battleGeneBits = 16;
-    uint8 constant battleGenesCount = 3;
+    uint8 constant battleGeneBits = 4;
+    uint8 constant battleGenesGroupsCount = 3;
     
     //count of genes in a group. right-most gene is considered dominant and will 
     //have effect on the image. others are considered recessive. 
@@ -26,17 +26,9 @@ contract MonsterGenetics {
         _isMonsterGenetics = true;
     }
     
-    function mixBattleGenes(uint256 genesMatron, uint256 genesSire) public pure returns (uint256 _result)
+    function mixBattleGenes(uint256 genesMatron, uint256 genesSire, uint256 targetBlock) public view returns (uint256 _result)
     {
-        for(uint i = 0; i < battleGenesCount; i++)
-        {
-            uint8 offset = uint8(battleGeneBits * i);
-            uint geneMatron = getBits(genesMatron, offset, battleGeneBits);
-            uint geneSire = getBits(genesSire, offset, battleGeneBits);
-            uint newGene = (geneMatron + geneSire) / 2;
-            _result = setBits(_result, newGene, offset, battleGeneBits);
-        }
-        return _result;
+        return mixGenesInner(genesMatron, genesSire, targetBlock, battleGeneBits, geneGroupSize, battleGenesGroupsCount);
     }
     
 
@@ -46,106 +38,119 @@ contract MonsterGenetics {
     /// @return the genes that are supposed to be passed down the child
     function mixGenes(uint256 genesMatron, uint256 genesSire, uint256 targetBlock) public view returns (uint256 _result)
     {
-        //this hash is calculated from input data and it's bits will be used as random numbers
-        uint randomSource = uint256(keccak256(abi.encodePacked(blockhash(targetBlock), genesMatron, genesSire, targetBlock)));
-        uint8 randomIndex = 0;
-        uint randomValue = 0;
-
-        
-        for(uint8 geneGroupIndex = 0; geneGroupIndex < geneGroupsCount; geneGroupIndex++)
+        return mixGenesInner(genesMatron, genesSire, targetBlock, geneBits, geneGroupSize, geneGroupsCount);
+    }
+    
+    function swapInsideGroups(uint _genesMatron, 
+    uint _genesSire,
+    uint _randomSource,
+    uint _randomIndex,
+    uint _geneBits,
+    uint _geneGroupSize,
+    uint _geneGroupsCount) internal pure returns(uint genesMatron_, uint genesSire_, uint randomIndex_)
+    {
+        for(uint8 geneGroupIndex = 0; geneGroupIndex < _geneGroupsCount; geneGroupIndex++)
         {
-            uint8 geneGroupBitsLength = geneBits * geneGroupSize;
-            uint8 geneGroupOffset = geneBits * geneGroupSize * geneGroupIndex;
-            
+        
             //processing each genes group separately
-            uint geneGroupMatron = getGenesGroup(genesMatron, geneGroupIndex);
-            uint geneGroupSire = getGenesGroup(genesSire, geneGroupIndex);
+            uint geneGroupMatron = uint32(getBits(_genesMatron, uint8(_geneBits * _geneGroupSize * geneGroupIndex), uint8(_geneBits * _geneGroupSize)));
+            uint geneGroupSire = uint32(getBits(_genesSire, uint8(_geneBits * _geneGroupSize * geneGroupIndex), uint8(_geneBits * _geneGroupSize)));
 
-            //processing each gen in group swapping them with a chance
-            for(uint8 geneIndex = geneGroupSize-1; geneIndex > 0; geneIndex--)
-            {
-                (geneGroupMatron, randomIndex) = processRecessiveGenes(geneGroupMatron, randomSource, randomIndex);
-                (genesSire, randomIndex) = processRecessiveGenes(genesSire, randomSource, randomIndex);
-            }
+           
+            (geneGroupMatron, _randomIndex) = processRecessiveGenes(geneGroupMatron, _randomSource, _randomIndex, _geneGroupSize, _geneBits);
+            (geneGroupSire, _randomIndex) = processRecessiveGenes(geneGroupSire, _randomSource, _randomIndex, _geneGroupSize, _geneBits);
+            
             
             //setting modified groups back in place
-            genesMatron = setBits(genesMatron, geneGroupMatron, geneGroupBitsLength, geneGroupOffset);
-            genesSire = setBits(genesSire, geneGroupSire, geneGroupBitsLength, geneGroupOffset);
+            _genesMatron = setBits(_genesMatron, geneGroupMatron, uint8(_geneBits * _geneGroupSize), _geneBits * _geneGroupSize * geneGroupIndex);
+            _genesSire = setBits(_genesSire, geneGroupSire, uint8(_geneBits * _geneGroupSize), _geneBits * _geneGroupSize * geneGroupIndex);
         }
+        
+        genesMatron_ = _genesMatron;
+        genesSire_ = _genesSire;
+        randomIndex_ = _randomIndex;
+    }
+    
+    function mixGenesInner(uint _genesMatron, 
+    uint _genesSire,
+    uint _targetBlock, 
+    uint _geneBits,
+    uint _geneGroupSize,
+    uint _geneGroupsCount) internal view returns (uint256 _result)
+    {
+        //this hash is calculated from input data and it's bits will be used as random numbers
+        uint randomSource = uint256(keccak256(abi.encodePacked(blockhash(_targetBlock), _genesMatron, _genesSire, _targetBlock)));
+        uint randomIndex = 0;
+        uint randomValue = 0;
+
+        (_genesMatron, _genesSire, randomIndex) = swapInsideGroups(_genesMatron, _genesSire, randomSource, randomIndex, _geneBits, _geneGroupSize, _geneGroupsCount);
         
         _result = 0;
         
         uint gene = 0;
         
         //going for each gene position one by one
-        for(geneIndex = 0; geneIndex < geneGroupSize * geneGroupsCount; geneIndex++)
+        for(uint geneIndex = 0; geneIndex < _geneGroupSize * _geneGroupsCount; geneIndex++)
         {
-            uint8 offset = geneIndex * geneBits;
             randomValue = getBits(randomSource, randomIndex, 1);
             randomIndex += 1;
             
             //randomly taking gene from mom or dad
             if(randomValue == 0)
             {
-                gene = getBits(genesMatron, offset, geneBits);
+                gene = getBits(_genesMatron, geneIndex * _geneBits, _geneBits);
             }
             else
             {
-                gene = getBits(genesSire, offset, geneBits);
+                gene = getBits(_genesSire, geneIndex * _geneBits, _geneBits);
             }
             
             //setting selected gene in it's place in the resulting set
-            _result = setBits(_result, gene, geneBits, offset);
+            _result = setBits(_result, gene, _geneBits, geneIndex * _geneBits);
         }
     
     }
     
-    function processRecessiveGenes(uint geneGroup, uint randomSource, uint8 randomIndex) private pure returns(uint geneGroup_, uint8 randomIndex_)
+    function processRecessiveGenes(uint _geneGroup, uint _randomSource, uint _randomIndex, uint _geneGroupSize, uint _geneBits) private pure returns(uint geneGroup_, uint randomIndex_)
     {
-        randomIndex_ = randomIndex;
-        geneGroup_ = geneGroup;
+        randomIndex_ = _randomIndex;
+        geneGroup_ = _geneGroup;
         bool swapped = false;
         uint randomValue;
-        for(uint8 geneIndex = geneGroupSize-1; geneIndex > 0; geneIndex--)
+        for(uint geneIndex = _geneGroupSize-1; geneIndex > 0; geneIndex--)
         {
             swapped = false;
-            randomValue = getBits(randomSource, randomIndex_, 2);
+            randomValue = getBits(_randomSource, randomIndex_, 2);
             randomIndex_ += 2;
             if(randomValue == 0)
             {
-                geneGroup_ = swapGenes(geneGroup_, geneIndex, geneIndex - 1);
+                _geneGroup = swapGenes(_geneGroup, geneIndex, geneIndex - 1, _geneBits);
                 swapped = true;
             }
         }
     }
     
-    function swapGenes(uint geneGroup, uint8 geneIndex1, uint8 geneIndex2) private pure returns(uint)
+    function swapGenes(uint _geneGroup, uint _geneIndex1, uint _geneIndex2, uint _geneBits) private pure returns(uint)
     {
-        uint8 offset1 = geneIndex1 * geneBits;
-        uint8 offset2 = geneIndex2 * geneBits;
-        uint gene1 = getBits(geneGroup, offset1, geneBits);
-        uint gene2 = getBits(geneGroup, offset2, geneBits);
-        geneGroup = setBits(geneGroup, gene2, geneBits, offset1);
-        geneGroup = setBits(geneGroup, gene1, geneBits, offset2);
-        return geneGroup;
+        uint offset1 = _geneIndex1 * _geneBits;
+        uint offset2 = _geneIndex2 * _geneBits;
+        uint gene1 = getBits(_geneGroup, uint8(offset1), uint8(_geneBits));
+        uint gene2 = getBits(_geneGroup, uint8(offset2), uint8(_geneBits));
+        _geneGroup = setBits(_geneGroup, gene2, uint8(_geneBits), offset1);
+        _geneGroup = setBits(_geneGroup, gene1, uint8(_geneBits), offset2);
+        return _geneGroup;
     }
     
     
     
-    function getGenesGroup(uint256 genes, uint8 groupIndex) private pure returns (uint32 genesGroup_)
-    {
-        uint8 offset = groupIndex * geneGroupSize * geneBits;
-        uint8 count = geneBits * geneGroupSize;
-        return uint32(getBits(genes, offset, count));
-    }
     
-    function getBits(uint256 source, uint8 offset, uint8 count) private pure returns(uint256 bits_)
+    function getBits(uint256 source, uint offset, uint count) private pure returns(uint256 bits_)
     {
         uint256 mask = (uint(2) ** count - 1) * uint(2) ** offset;
         return (source & mask) / uint(2) ** offset;
     }
     
-    function setBits(uint target, uint bits, uint8 size, uint8 offset) private pure returns(uint)
+    function setBits(uint target, uint bits, uint size, uint offset) private pure returns(uint)
     {
         //ensure bits do not exccess declared size
         uint256 truncateMask = uint(2) ** size - 1;
