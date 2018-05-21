@@ -317,10 +317,11 @@ contract MonsterBreeding is MonsterOwnership {
 
         // Call the sooper-sekret gene mixing operation.
         uint256 childGenes = geneScience.mixGenes(matron.genes, sire.genes, block.number - 1);
+        uint256 childBattleGenes = geneScience.mixBattleGenes(matron.battleGenes, sire.battleGenes);
 
         // Make the new kitten!
         address owner = monsterIndexToOwner[_matronId];
-        uint256 monsterId = _createMonster(_matronId, matron.siringWithId, parentGen + 1, childGenes, 0, 0, owner);
+        uint256 monsterId = _createMonster(_matronId, matron.siringWithId, parentGen + 1, childGenes, childBattleGenes, 0, owner);
 
         // Clear the reference to sire from the matron (REQUIRED! Having siringWithId
         // set is what marks a matron as being pregnant.)
