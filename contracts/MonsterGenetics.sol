@@ -5,6 +5,8 @@ contract MonsterGenetics {
     
     //size of a gene in bits. 6 bits provide 64 variants of gene
     uint8 constant geneBits = 6;
+    uint8 constant battleGeneBits = 16;
+    uint8 constant battleGenesCount = 3;
     
     //count of genes in a group. right-most gene is considered dominant and will 
     //have effect on the image. others are considered recessive. 
@@ -22,6 +24,19 @@ contract MonsterGenetics {
     function isMonsterGenetics() public pure returns (bool _isMonsterGenetics)
     {
         _isMonsterGenetics = true;
+    }
+    
+    function mixBattleGenes(uint256 genesMatron, uint256 genesSire) public pure returns (uint256 _result)
+    {
+        for(uint i = 0; i < battleGenesCount; i++)
+        {
+            uint8 offset = uint8(battleGeneBits * i);
+            uint geneMatron = getBits(genesMatron, offset, battleGeneBits);
+            uint geneSire = getBits(genesSire, offset, battleGeneBits);
+            uint newGene = (geneMatron + geneSire) / 2;
+            _result = setBits(_result, newGene, offset, battleGeneBits);
+        }
+        return _result;
     }
     
 
