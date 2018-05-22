@@ -265,6 +265,14 @@ contract ClockAuction is Pausable, ClockAuctionBase {
         ERC721 candidateContract = ERC721(_nftAddress);
         nonFungibleContract = candidateContract;
     }
+    
+    function setAuctionParameters(address _nftAddress, uint256 _cut) external onlyOwner {
+         require(_cut <= 10000);
+        ownerCut = _cut;
+
+        ERC721 candidateContract = ERC721(_nftAddress);
+        nonFungibleContract = candidateContract;
+    }
 
     /// @dev Remove all Ether from the contract, which is the owner's cuts
     ///  as well as any Ether sent directly to the contract address.

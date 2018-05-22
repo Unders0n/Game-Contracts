@@ -105,13 +105,15 @@ contract MonsterCore is MonsterMinting {
         uint256 sireId,
         uint256 siringWithId,
         uint256 growScore,
-        uint256 level
+        uint256 level,
+        uint256 potionId,
+        uint256 potionExpire
         
     ) {
         Monster storage mon = monsters[_id];
 
-        birthTime = uint256(mon.birthTime);
-        generation = uint256(mon.generation);
+        birthTime = mon.birthTime;
+        generation = mon.generation;
         genes = mon.genes;
         cooldownEndTimestamp = mon.cooldownEndTimestamp;
         matronId = mon.matronId;
@@ -121,6 +123,8 @@ contract MonsterCore is MonsterMinting {
         battleGenes = mon.battleGenes;
         growScore = mon.growScore;
         level = mon.level;
+        potionId = mon.potionId;
+        potionExpire = mon.potionExpire;
     }
 
     /// @dev Override unpause so it requires all external contract addresses
@@ -153,6 +157,7 @@ contract MonsterCore is MonsterMinting {
         saleAuction.withdrawBalance();
         siringAuction.withdrawBalance();
         battlesContract.withdrawBalance();
+        monsterFood.withdrawBalance();
     }
 }
 

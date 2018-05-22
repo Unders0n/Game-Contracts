@@ -74,6 +74,11 @@ contract MonsterBase is MonsterAccessControl {
         
         uint16 growScore;
         uint8 level;
+        
+        uint8 potionId;
+        uint64 potionExpire;
+        
+        uint64 foodCooldownEndTimestamp;
     }
     
     /// @dev A lookup table indicating the cooldown duration after any successful
@@ -202,7 +207,10 @@ contract MonsterBase is MonsterAccessControl {
             generation: uint16(_generation),
             battleGenes: uint64(_battleGenes),
             level: uint8(_level),
-            growScore: 0
+            growScore: 0,
+            potionId: 0,
+            potionExpire: 0,
+            foodCooldownEndTimestamp: 0
         });
         uint256 newMonsterId = monsters.push(_monster) - 1;
 

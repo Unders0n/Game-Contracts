@@ -1,19 +1,31 @@
 ﻿pragma solidity ^0.4.23;
 
+import "./ERC721.sol";
 
 contract MonsterFood {
+    
+    ERC721 public nonFungibleContract;
+    
     bool public isMonsterFood = true;
     
     event FoodCreated(uint id, uint code, uint feedingScore, uint price);
     event FoodDeleted(uint code);
     
-    constructor() public {
+    constructor(address _nftAddress) public {
         ownerAddress = msg.sender;
+        ERC721 candidateContract = ERC721(_nftAddress);
+        nonFungibleContract = candidateContract;
     }
     
     modifier onlyOwner() {
         require(msg.sender == ownerAddress);
         _;
+    }
+    
+    function setTokenContract(address _nftAddress) external onlyOwner
+    {
+        ERC721 candidateContract = ERC721(_nftAddress);
+        nonFungibleContract = candidateContract;
     }
     
     struct Food {
@@ -51,6 +63,20 @@ contract MonsterFood {
         return newFoodIndex;
     }
     
+    function feedMonster(uint foodCode, uint growScore, uint level, uint mfCooldown, uint siringWithId) public payable
+    returns(uint growScore_, uint level_, uint mfCooldown_, uint potionId_, uint potionExpire_)
+    {
+        uint32 foodId = codeToFoodIndex[uint16(foodCode)];
+        Food storage _food = food[foodId];
+        growScore = growScore + _food.feedingScore - _food.feedingScore;
+        growScore_ = growScore;
+        level_ = level;
+        mfCooldown_ = mfCooldown + siringWithId - siringWithId;
+        potionId_ = 0;
+        potionExpire_ = 0;
+    }
+    
+
     function getFood(uint256 _foodCode)
         external
         view
@@ -73,6 +99,17 @@ contract MonsterFood {
         delete codeToFoodIndex[uint16(_code)];
         delete food[_id];
         emit FoodDeleted(_code);
+    }
+    
+    function withdrawBalance() external {
+        address nftAddress = address(nonFungibleContract);
+
+        require(
+            msg.sender == ownerAddress ||
+            msg.sender == nftAddress
+        );
+        // We are using this boolean method to make sure that even if one fails it will still work
+        nftAddress.transfer(address(this).balance);
     }
 }
     

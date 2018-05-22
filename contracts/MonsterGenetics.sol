@@ -1,7 +1,10 @@
 ﻿pragma solidity ^0.4.23;
 
+import "./MonsterLib.sol";
+
 /// @title SEKRETOOOO
 contract MonsterGenetics {
+    
     
     //size of a gene in bits. 6 bits provide 64 variants of gene
     uint8 constant geneBits = 6;
@@ -17,8 +20,7 @@ contract MonsterGenetics {
     //count of traits of the monster. each trait is represented as a genes group
     uint8 constant geneGroupsCount = 14;
     
-    //max uint constant for bit operations
-    uint constant UINT_MAX = uint(2) ** 256 - 1;
+    
     
     /// @dev simply a boolean to indicate this is the contract we expect to be
     function isMonsterGenetics() public pure returns (bool _isMonsterGenetics)
@@ -53,8 +55,8 @@ contract MonsterGenetics {
         {
         
             //processing each genes group separately
-            uint geneGroupMatron = uint32(getBits(_genesMatron, uint8(_geneBits * _geneGroupSize * geneGroupIndex), uint8(_geneBits * _geneGroupSize)));
-            uint geneGroupSire = uint32(getBits(_genesSire, uint8(_geneBits * _geneGroupSize * geneGroupIndex), uint8(_geneBits * _geneGroupSize)));
+            uint geneGroupMatron = uint32(MonsterLib.getBits(_genesMatron, uint8(_geneBits * _geneGroupSize * geneGroupIndex), uint8(_geneBits * _geneGroupSize)));
+            uint geneGroupSire = uint32(MonsterLib.getBits(_genesSire, uint8(_geneBits * _geneGroupSize * geneGroupIndex), uint8(_geneBits * _geneGroupSize)));
 
            
             (geneGroupMatron, _randomIndex) = processRecessiveGenes(geneGroupMatron, _randomSource, _randomIndex, _geneGroupSize, _geneBits);
@@ -62,8 +64,8 @@ contract MonsterGenetics {
             
             
             //setting modified groups back in place
-            _genesMatron = setBits(_genesMatron, geneGroupMatron, uint8(_geneBits * _geneGroupSize), _geneBits * _geneGroupSize * geneGroupIndex);
-            _genesSire = setBits(_genesSire, geneGroupSire, uint8(_geneBits * _geneGroupSize), _geneBits * _geneGroupSize * geneGroupIndex);
+            _genesMatron = MonsterLib.setBits(_genesMatron, geneGroupMatron, uint8(_geneBits * _geneGroupSize), _geneBits * _geneGroupSize * geneGroupIndex);
+            _genesSire = MonsterLib.setBits(_genesSire, geneGroupSire, uint8(_geneBits * _geneGroupSize), _geneBits * _geneGroupSize * geneGroupIndex);
         }
         
         genesMatron_ = _genesMatron;
@@ -92,21 +94,21 @@ contract MonsterGenetics {
         //going for each gene position one by one
         for(uint geneIndex = 0; geneIndex < _geneGroupSize * _geneGroupsCount; geneIndex++)
         {
-            randomValue = getBits(randomSource, randomIndex, 1);
+            randomValue = MonsterLib.getBits(randomSource, randomIndex, 1);
             randomIndex += 1;
             
             //randomly taking gene from mom or dad
             if(randomValue == 0)
             {
-                gene = getBits(_genesMatron, geneIndex * _geneBits, _geneBits);
+                gene = MonsterLib.getBits(_genesMatron, geneIndex * _geneBits, _geneBits);
             }
             else
             {
-                gene = getBits(_genesSire, geneIndex * _geneBits, _geneBits);
+                gene = MonsterLib.getBits(_genesSire, geneIndex * _geneBits, _geneBits);
             }
             
             //setting selected gene in it's place in the resulting set
-            _result = setBits(_result, gene, _geneBits, geneIndex * _geneBits);
+            _result = MonsterLib.setBits(_result, gene, _geneBits, geneIndex * _geneBits);
         }
     
     }
@@ -120,7 +122,7 @@ contract MonsterGenetics {
         for(uint geneIndex = _geneGroupSize-1; geneIndex > 0; geneIndex--)
         {
             swapped = false;
-            randomValue = getBits(_randomSource, randomIndex_, 2);
+            randomValue = MonsterLib.getBits(_randomSource, randomIndex_, 2);
             randomIndex_ += 2;
             if(randomValue == 0)
             {
@@ -134,36 +136,11 @@ contract MonsterGenetics {
     {
         uint offset1 = _geneIndex1 * _geneBits;
         uint offset2 = _geneIndex2 * _geneBits;
-        uint gene1 = getBits(_geneGroup, uint8(offset1), uint8(_geneBits));
-        uint gene2 = getBits(_geneGroup, uint8(offset2), uint8(_geneBits));
-        _geneGroup = setBits(_geneGroup, gene2, uint8(_geneBits), offset1);
-        _geneGroup = setBits(_geneGroup, gene1, uint8(_geneBits), offset2);
+        uint gene1 = MonsterLib.getBits(_geneGroup, uint8(offset1), uint8(_geneBits));
+        uint gene2 = MonsterLib.getBits(_geneGroup, uint8(offset2), uint8(_geneBits));
+        _geneGroup = MonsterLib.setBits(_geneGroup, gene2, uint8(_geneBits), offset1);
+        _geneGroup = MonsterLib.setBits(_geneGroup, gene1, uint8(_geneBits), offset2);
         return _geneGroup;
-    }
-    
-    
-    
-    
-    function getBits(uint256 source, uint offset, uint count) private pure returns(uint256 bits_)
-    {
-        uint256 mask = (uint(2) ** count - 1) * uint(2) ** offset;
-        return (source & mask) / uint(2) ** offset;
-    }
-    
-    function setBits(uint target, uint bits, uint size, uint offset) private pure returns(uint)
-    {
-        //ensure bits do not exccess declared size
-        uint256 truncateMask = uint(2) ** size - 1;
-        bits = bits & truncateMask;
-        
-        //shift in place
-        bits = bits * uint(2) ** offset;
-        
-        uint clearMask = ((uint(2) ** size - 1) * (uint(2) ** offset)) ^ UINT_MAX;
-        target = target & clearMask;
-        target = target | bits;
-        return target;
-        
     }
     
 }

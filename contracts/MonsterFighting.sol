@@ -2,6 +2,7 @@
 
 import "./MonsterFeeding.sol";
 import "./MonsterBattles.sol";
+import "./MonsterLib.sol";
 
 /// @title Handles creating auctions for sale and siring of monsters.
 contract MonsterFighting is MonsterFeeding {
@@ -17,19 +18,13 @@ contract MonsterFighting is MonsterFeeding {
         battlesContract = candidateContract;
     }
     
-    function getBits(uint256 source, uint8 offset, uint8 count) internal pure returns(uint256 bits_)
-    {
-        uint256 mask = (uint(2) ** count - 1) * uint(2) ** offset;
-        return (source & mask) / uint(2) ** offset;
-    }
-    
-    function prepareForBattle(uint _param1, uint _param2, uint _param3) external payable returns(uint){
+      function prepareForBattle(uint _param1, uint _param2, uint _param3) external payable returns(uint){
         require(_param1 > 0);
         require(_param2 > 0);
         require(_param3 > 0);
         
         for(uint i = 0; i < 5; i++){
-            uint monsterId = getBits(_param1, uint8(i * 32), uint8(32));
+            uint monsterId = MonsterLib.getBits(_param1, uint8(i * 32), uint8(32));
             require(_owns(msg.sender, monsterId));
             _approve(monsterId, address(battlesContract));
         }

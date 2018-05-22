@@ -13,45 +13,6 @@ contract MonsterOwnership is MonsterBase, ERC721 {
     string public constant name = "MonsterBit";
     string public constant symbol = "MB";
 
-    // The contract that will return monster metadata
-    ERC721Metadata public erc721Metadata;
-
-    bytes4 constant InterfaceSignature_ERC165 =
-        bytes4(keccak256('supportsInterface(bytes4)'));
-
-    bytes4 constant InterfaceSignature_ERC721 =
-        bytes4(keccak256('name()')) ^
-        bytes4(keccak256('symbol()')) ^
-        bytes4(keccak256('totalSupply()')) ^
-        bytes4(keccak256('balanceOf(address)')) ^
-        bytes4(keccak256('ownerOf(uint256)')) ^
-        bytes4(keccak256('approve(address,uint256)')) ^
-        bytes4(keccak256('transfer(address,uint256)')) ^
-        bytes4(keccak256('transferFrom(address,address,uint256)')) ^
-        bytes4(keccak256('tokensOfOwner(address)')) ^
-        bytes4(keccak256('tokenMetadata(uint256,string)'));
-
-    /// @notice Introspection interface as per ERC-165 (https://github.com/ethereum/EIPs/issues/165).
-    ///  Returns true for any standardized interfaces implemented by this contract. We implement
-    ///  ERC-165 (obviously!) and ERC-721.
-    function supportsInterface(bytes4 _interfaceID) external view returns (bool)
-    {
-        // DEBUG ONLY
-        //require((InterfaceSignature_ERC165 == 0x01ffc9a7) && (InterfaceSignature_ERC721 == 0x9a20483d));
-
-        return ((_interfaceID == InterfaceSignature_ERC165) || (_interfaceID == InterfaceSignature_ERC721));
-    }
-
-    /// @dev Set the address of the sibling contract that tracks metadata.
-    ///  CEO only.
-    function setMetadataAddress(address _contractAddress) public onlyCEO {
-        erc721Metadata = ERC721Metadata(_contractAddress);
-    }
-
-    // Internal utility functions: These functions all assume that their input arguments
-    // are valid. We leave it to public methods to sanitize their inputs and follow
-    // the required logic.
-
     /// @dev Checks if a given address is the current owner of a particular Monster.
     /// @param _claimant the address we are validating against.
     /// @param _tokenId monster id, only valid when > 0
@@ -215,55 +176,5 @@ contract MonsterOwnership is MonsterBase, ERC721 {
         }
     }
 
-    /// @dev Adapted from memcpy() by @arachnid (Nick Johnson <arachnid@notdot.net>)
-    ///  This method is licenced under the Apache License.
-    ///  Ref: https://github.com/Arachnid/solidity-stringutils/blob/2f6ca9accb48ae14c66f1437ec50ed19a0616f78/strings.sol
-    function _memcpy(uint _dest, uint _src, uint _len) private pure {
-        // Copy word-length chunks while possible
-        for(; _len >= 32; _len -= 32) {
-            assembly {
-                mstore(_dest, mload(_src))
-            }
-            _dest += 32;
-            _src += 32;
-        }
-
-        // Copy remaining bytes
-        uint256 mask = 256 ** (32 - _len) - 1;
-        assembly {
-            let srcpart := and(mload(_src), not(mask))
-            let destpart := and(mload(_dest), mask)
-            mstore(_dest, or(destpart, srcpart))
-        }
-    }
-
-    /// @dev Adapted from toString(slice) by @arachnid (Nick Johnson <arachnid@notdot.net>)
-    ///  This method is licenced under the Apache License.
-    ///  Ref: https://github.com/Arachnid/solidity-stringutils/blob/2f6ca9accb48ae14c66f1437ec50ed19a0616f78/strings.sol
-    function _toString(bytes32[4] _rawBytes, uint256 _stringLength) private pure returns (string) {
-        string memory outputString = new string(_stringLength);
-        uint256 outputPtr;
-        uint256 bytesPtr;
-
-        assembly {
-            outputPtr := add(outputString, 32)
-            bytesPtr := _rawBytes
-        }
-
-        _memcpy(outputPtr, bytesPtr, _stringLength);
-
-        return outputString;
-    }
-
-    /// @notice Returns a URI pointing to a metadata package for this token conforming to
-    ///  ERC-721 (https://github.com/ethereum/EIPs/issues/721)
-    /// @param _tokenId The ID number of the Monster whose metadata should be returned.
-    function tokenMetadata(uint256 _tokenId, string _preferredTransport) external view returns (string infoUrl) {
-        require(erc721Metadata != address(0));
-        bytes32[4] memory buffer;
-        uint256 count;
-        (buffer, count) = erc721Metadata.getMetadata(_tokenId, _preferredTransport);
-
-        return _toString(buffer, count);
-    }
+ 
 }

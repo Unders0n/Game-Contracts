@@ -5,7 +5,6 @@ import "./MonsterFood.sol";
 
 contract MonsterFeeding is MonsterBreeding {
     
-    event LevelUp(uint monsterId, uint level);
     event MonsterFed(uint monsterId, uint growScore);
     
     
@@ -21,30 +20,22 @@ contract MonsterFeeding is MonsterBreeding {
     
     function feedMonster(uint _monsterId, uint _foodCode) external payable{
         Monster storage monster = monsters[_monsterId];
-        require(monster.level < 2);
         
-        (uint feedingScore, uint priceWei, bool exists) = monsterFood.getFood(_foodCode);
-        require(exists);
+        (uint newGrowScore, uint newLevel, uint newMfCooldown, uint potionId, uint potionExpire) = 
+                monsterFood.feedMonster.value(msg.value)(_foodCode,
+                monster.growScore, 
+                monster.level, 
+                monster.cooldownEndTimestamp, 
+                monster.siringWithId);
+                
         
-        require(msg.value > priceWei);
-        require(feedingScore >= 10);
-        
-        uint devalvation = monster.generation / 2;
-        if(devalvation > 8){
-            devalvation = 8;
-        }
-        
-        feedingScore -= devalvation;
-        
-        uint growScore = monster.growScore + feedingScore;
-        if(growScore >= levelScores[monster.level]){
-            monster.level++;
-            monster.growScore = 0;
-            emit LevelUp(_monsterId, monster.level);
-        } else{
-            monster.growScore += uint8(feedingScore);
-        }
-        
+                
+        monster.growScore = uint16(newGrowScore);
+        monster.level = uint8(newLevel);
+        monster.cooldownEndTimestamp = uint64(newMfCooldown);
+        monster.potionId = uint8(potionId);
+        monster.potionExpire = uint64(potionExpire);
+
         emit MonsterFed(_monsterId, monster.growScore);
         
     }
