@@ -54,6 +54,35 @@ contract MonsterAuction is MonsterFighting {
             msg.sender
         );
     }
+    
+    /// @dev Put a monster up for auction to be sire.
+    ///  Performs checks to ensure the monster can be sired, then
+    ///  delegates to reverse auction.
+    function createSiringAuction(
+        uint256 _monsterId,
+        uint256 _startingPrice,
+        uint256 _endingPrice,
+        uint256 _duration
+    )
+        external
+        whenNotPaused
+    {
+        // Auction contract checks input sizes
+        // If monster is already on any auction, this will throw
+        // because it will be owned by the auction contract.
+        require(_owns(msg.sender, _monsterId));
+        require(isReadyToBreed(_monsterId));
+        _approve(_monsterId, siringAuction);
+        // Siring auction throws if inputs are invalid and clears
+        // transfer and sire approval after escrowing the kitty.
+        siringAuction.createAuction(
+            _monsterId,
+            _startingPrice,
+            _endingPrice,
+            _duration,
+            msg.sender
+        );
+    }
 
 
     
