@@ -100,14 +100,13 @@ contract MonsterCore is MonsterMinting {
         uint256 genes,
         uint256 battleGenes,
         uint256 cooldownIndex,
-        uint256 cooldownEndTimestamp,
         uint256 matronId,
         uint256 sireId,
         uint256 siringWithId,
         uint256 growScore,
         uint256 level,
-        uint256 potionId,
-        uint256 potionExpire
+        uint256 potionEffect,
+        uint256 cooldowns
         
     ) {
         Monster storage mon = monsters[_id];
@@ -115,7 +114,6 @@ contract MonsterCore is MonsterMinting {
         birthTime = mon.birthTime;
         generation = mon.generation;
         genes = mon.genes;
-        cooldownEndTimestamp = mon.cooldownEndTimestamp;
         matronId = mon.matronId;
         sireId = mon.sireId;
         siringWithId = mon.siringWithId;
@@ -123,8 +121,12 @@ contract MonsterCore is MonsterMinting {
         battleGenes = mon.battleGenes;
         growScore = mon.growScore;
         level = mon.level;
-        potionId = mon.potionId;
-        potionExpire = mon.potionExpire;
+        potionEffect = mon.potionEffect;
+        
+        cooldowns = 0;
+        cooldowns = MonsterLib.setBits(cooldowns, mon.cooldownEndTimestamp, 64, 0);
+        cooldowns = MonsterLib.setBits(cooldowns, mon.potionExpire, 64, 64);
+        cooldowns = MonsterLib.setBits(cooldowns, mon.foodCooldownEndTimestamp, 64, 128);
     }
 
     /// @dev Override unpause so it requires all external contract addresses

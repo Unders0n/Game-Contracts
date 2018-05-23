@@ -75,7 +75,7 @@ contract MonsterBase is MonsterAccessControl {
         uint16 growScore;
         uint8 level;
         
-        uint8 potionId;
+        uint8 potionEffect;
         uint64 potionExpire;
         
         uint64 foodCooldownEndTimestamp;
@@ -208,7 +208,7 @@ contract MonsterBase is MonsterAccessControl {
             battleGenes: uint64(_battleGenes),
             level: uint8(_level),
             growScore: 0,
-            potionId: 0,
+            potionEffect: 0,
             potionExpire: 0,
             foodCooldownEndTimestamp: 0
         });
