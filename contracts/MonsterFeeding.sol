@@ -28,7 +28,9 @@ contract MonsterFeeding is MonsterBreeding {
         cooldowns = MonsterLib.setBits(cooldowns, monster.foodCooldownEndTimestamp, 64, 128);
         
         (uint newGrowScore, uint newLevel, uint potionEffect, uint newCooldowns) = 
-                monsterFood.feedMonster.value(msg.value)(_foodCode,
+                monsterFood.feedMonster.value(msg.value)(
+                    msg.sender,
+                    _foodCode,
                 monster.growScore, 
                 monster.level, 
                 monster.cooldownEndTimestamp, 
