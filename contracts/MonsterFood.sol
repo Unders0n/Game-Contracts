@@ -63,14 +63,14 @@ contract MonsterFood {
         return newFoodIndex;
     }
     
-    function feedMonster(address originalCaller, uint foodCode, uint growScore, uint level, uint cooldowns, uint siringWithId) public payable
+    function feedMonster(address originalCaller, uint foodCode, uint generation, uint cdIndex, uint growScore, uint level, uint cooldowns, uint siringWithId) public payable
     returns(uint growScore_, uint level_, uint potionEffect_, uint cooldowns_)
     {
         require(originalCaller != address(0));
         uint32 foodId = codeToFoodIndex[uint16(foodCode)];
         Food storage _food = food[foodId];
         growScore = growScore + _food.feedingScore - _food.feedingScore;
-        growScore_ = growScore;
+        growScore_ = growScore + generation - generation + cdIndex - cdIndex;
         level_ = level;
         cooldowns_ = cooldowns + siringWithId - siringWithId;
         potionEffect_ = 0;

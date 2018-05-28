@@ -31,6 +31,8 @@ contract MonsterFeeding is MonsterBreeding {
                 monsterFood.feedMonster.value(msg.value)(
                     msg.sender,
                     _foodCode,
+                monster.generation,
+                monster.cooldownIndex,
                 monster.growScore, 
                 monster.level, 
                 monster.cooldownEndTimestamp, 

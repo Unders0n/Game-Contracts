@@ -81,30 +81,7 @@ contract MonsterBase is MonsterAccessControl {
         uint64 foodCooldownEndTimestamp;
     }
     
-    /// @dev A lookup table indicating the cooldown duration after any successful
-    ///  breeding action, called "pregnancy time" for matrons and "siring cooldown"
-    ///  for sires. Designed such that the cooldown roughly doubles each time a monster
-    ///  is bred, encouraging owners not to just keep breeding the same monster over
-    ///  and over again. Caps out at one week (a cat monster breed an unbounded number
-    ///  of times, and the maximum cooldown is always seven days).
-    uint32[14] public cooldowns = [
-        uint32(1 minutes),
-        uint32(2 minutes),
-        uint32(5 minutes),
-        uint32(10 minutes),
-        uint32(30 minutes),
-        uint32(1 hours),
-        uint32(2 hours),
-        uint32(4 hours),
-        uint32(8 hours),
-        uint32(16 hours),
-        uint32(1 days),
-        uint32(2 days),
-        uint32(4 days),
-        uint32(7 days)
-    ];
-    
-    uint32[2] public levelScores = [100, 100];
+  
 
     /*** STORAGE ***/
 
