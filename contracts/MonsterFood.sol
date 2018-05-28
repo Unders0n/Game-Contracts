@@ -8,7 +8,7 @@ contract MonsterFood {
     
     bool public isMonsterFood = true;
     
-    event FoodCreated(uint id, uint code, uint feedingScore, uint price);
+    event FoodCreated(uint code);
     event FoodDeleted(uint code);
     
     constructor(address _nftAddress) public {
@@ -28,10 +28,18 @@ contract MonsterFood {
         nonFungibleContract = candidateContract;
     }
     
+    //application bits by offset:
+    //0 - cheeper
+    //1 - cub
+    //2 - mature (not mom)
+    //3 - mom
+    
     struct Food {
         uint16 code;
         uint16 feedingScore;
+        uint64 cdReduction; //seconds
         uint256 priceWei;
+        uint16 application;
         bool exists;
     }
     
@@ -44,7 +52,7 @@ contract MonsterFood {
         ownerAddress = newOwner;
     }
     
-    function createFood(uint _feedingScore, uint _priceWei, uint _code) public onlyOwner returns(uint) {
+    function createFood(uint _feedingScore, uint _priceWei, uint _code, uint _cdReduction, uint _application) public onlyOwner returns(uint) {
         require(_feedingScore >= 10);
         require(_priceWei > 0);
         
@@ -52,6 +60,8 @@ contract MonsterFood {
             feedingScore: uint16(_feedingScore),
             priceWei: _priceWei,
             code: uint16(_code),
+            cdReduction: uint64(_cdReduction),
+            application: uint16(_application),
             exists: true
         });
         
@@ -59,7 +69,7 @@ contract MonsterFood {
         require(newFoodIndex == uint256(uint32(newFoodIndex)));
         codeToFoodIndex[uint16(_code)] = uint32(newFoodIndex);
         
-        emit FoodCreated(newFoodIndex, _food.code, _food.feedingScore, _food.priceWei);
+        emit FoodCreated(_food.code);
         return newFoodIndex;
     }
     
@@ -83,6 +93,8 @@ contract MonsterFood {
         returns (
         uint256 feedingScore,
         uint256 priceWei,
+        uint256 cdReduction,
+        uint256 application,
         bool exists
     ) {
         uint32 foodId = codeToFoodIndex[uint16(_foodCode)];
@@ -91,6 +103,8 @@ contract MonsterFood {
         feedingScore = uint(_food.feedingScore);
         exists = _food.exists;
         priceWei = _food.priceWei;
+        cdReduction = _food.cdReduction;
+        application = _food.application;
     }
     
     
