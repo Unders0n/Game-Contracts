@@ -72,7 +72,7 @@ contract MonsterBreeding is MonsterOwnership {
         // Increment the breeding count, clamping it at 13, which is the length of the
         // cooldowns array. We could check the array size dynamically, but hard-coding
         // this as a constant saves gas. Yay, Solidity!
-        if (_monster.cooldownIndex < 13) {
+        if (_monster.cooldownIndex < 7) {
             _monster.cooldownIndex += 1;
         }
     }

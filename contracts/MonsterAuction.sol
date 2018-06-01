@@ -83,6 +83,32 @@ contract MonsterAuction is MonsterFighting {
             msg.sender
         );
     }
+    
+    /// @dev Completes a siring auction by bidding.
+    ///  Immediately breeds the winning matron with the sire on auction.
+    /// @param _sireId - ID of the sire on auction.
+    /// @param _matronId - ID of the matron owned by the bidder.
+    function bidOnSiringAuction(
+        uint256 _sireId,
+        uint256 _matronId
+    )
+        external
+        payable
+        whenNotPaused
+    {
+        // Auction contract checks input sizes
+        require(_owns(msg.sender, _matronId));
+        require(isReadyToBreed(_matronId));
+        require(_canBreedWithViaAuction(_matronId, _sireId));
+
+        // Define the current price of the auction.
+        uint256 currentPrice = siringAuction.getCurrentPrice(_sireId);
+        require(msg.value >= currentPrice + autoBirthFee);
+
+        // Siring auction will throw if the bid fails.
+        siringAuction.bid.value(msg.value - autoBirthFee)(_sireId);
+        _breedWith(uint32(_matronId), uint32(_sireId));
+    }
 
 
     
