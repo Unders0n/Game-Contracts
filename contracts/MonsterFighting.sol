@@ -37,6 +37,37 @@ contract MonsterFighting is MonsterFeeding {
     }
     
     function finishBattle(uint _param1, uint _param2, uint _param3) external returns(uint) {
-        return battlesContract.finishBattle(msg.sender, _param1, _param2, _param3);
+        (uint return1, uint return2, uint return3) = battlesContract.finishBattle(msg.sender, _param1, _param2, _param3);
+        uint[10] memory monsterIds;
+        uint i;
+        uint monsterId;
+        
+        require(return3>=0);
+        
+        for(i = 0; i < 8; i++){
+            monsterId = MonsterLib.getBits(return1, uint8(i * 32), uint8(32));
+            monsterIds[i] = monsterId;
+        }
+        
+        for(i = 0; i < 2; i++){
+            monsterId = MonsterLib.getBits(return2, uint8(i * 32), uint8(32));
+            monsterIds[i+8] = monsterId;
+        }
+        
+        for(i = 0; i < 10; i++){
+            monsterId = monsterIds[i];
+            Monster storage monster = monsters[monsterId];
+            uint bc = monster.battleCounter + 1;
+            uint increaseIndex = 0;
+            if(bc >= 10)
+            {
+                bc = 0;
+                increaseIndex = 1;
+            }
+            monster.battleCounter = uint8(bc);
+            _triggerCooldown(monster, increaseIndex);
+        }
+        
+        
     }
 }

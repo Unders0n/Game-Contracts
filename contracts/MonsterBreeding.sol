@@ -65,15 +65,20 @@ contract MonsterBreeding is MonsterOwnership {
     /// @dev Set the cooldownEndTime for the given monster, based on its current cooldownIndex.
     ///  Also increments the cooldownIndex (unless it has hit the cap).
     /// @param _monster A reference to the monster in storage which needs its timer started.
-    function _triggerCooldown(Monster storage _monster) internal {
+    function _triggerCooldown(Monster storage _monster, uint increaseIndex) internal {
         // Compute an estimation of the cooldown time in seconds.
-        _monster.cooldownEndTimestamp = uint64(cooldowns[_monster.cooldownIndex] + now);
+        uint cdLength = _monster.generation * _monster.cooldownIndex;
+        cdLength = cdLength * cdLength * 60;
+        _monster.cooldownEndTimestamp = uint64(cdLength + now);
 
         // Increment the breeding count, clamping it at 13, which is the length of the
         // cooldowns array. We could check the array size dynamically, but hard-coding
         // this as a constant saves gas. Yay, Solidity!
-        if (_monster.cooldownIndex < 7) {
-            _monster.cooldownIndex += 1;
+        if(increaseIndex > 0)
+        {
+            if (_monster.cooldownIndex < 7) {
+                _monster.cooldownIndex += 1;
+            }
         }
     }
 
@@ -215,8 +220,8 @@ contract MonsterBreeding is MonsterOwnership {
         matron.siringWithId = uint32(_sireId);
 
         // Trigger the cooldown for both parents.
-        _triggerCooldown(sire);
-        _triggerCooldown(matron);
+        _triggerCooldown(sire, 1);
+        _triggerCooldown(matron, 1);
 
         // Clear siring permission for both parents. This may not be strictly necessary
         // but it's likely to avoid confusion!

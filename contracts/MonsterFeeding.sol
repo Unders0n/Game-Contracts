@@ -9,7 +9,7 @@ contract MonsterFeeding is MonsterBreeding {
     event MonsterFed(uint monsterId, uint growScore);
     
     
-    function setMonsterFeedingAddress(address _address) external onlyCEO {
+    function setMonsterFoodAddress(address _address) external onlyCEO {
         MonsterFood candidateContract = MonsterFood(_address);
 
         // NOTE: verify that a contract is what we expect

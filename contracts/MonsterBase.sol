@@ -79,6 +79,8 @@ contract MonsterBase is MonsterAccessControl {
         uint64 potionExpire;
         
         uint64 foodCooldownEndTimestamp;
+        
+        uint8 battleCounter;
     }
     
   
@@ -187,7 +189,8 @@ contract MonsterBase is MonsterAccessControl {
             growScore: 0,
             potionEffect: 0,
             potionExpire: 0,
-            foodCooldownEndTimestamp: 0
+            foodCooldownEndTimestamp: 0,
+            battleCounter: 0
         });
         uint256 newMonsterId = monsters.push(_monster) - 1;
 
