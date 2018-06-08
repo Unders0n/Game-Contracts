@@ -32,11 +32,11 @@ contract MonsterFeeding is MonsterBreeding {
                     msg.sender,
                     _foodCode,
                 monster.generation,
-                monster.cooldownIndex,
                 monster.growScore, 
                 monster.level, 
-                monster.cooldownEndTimestamp, 
-                monster.siringWithId);
+                cooldowns, 
+                monster.siringWithId,
+                monster.potionEffect);
         
         
         monster.growScore = uint16(newGrowScore);
