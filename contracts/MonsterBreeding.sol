@@ -15,6 +15,8 @@ contract MonsterBreeding is MonsterOwnership {
     ///  the gas cost paid by whatever calls giveBirth(), and can be dynamically updated by
     ///  the COO role as the gas price changes.
     uint256 public autoBirthFee = 2 finney;
+    
+    uint256 public pregnantMonsters;
 
     
 
@@ -242,6 +244,8 @@ contract MonsterBreeding is MonsterOwnership {
         // but it's likely to avoid confusion!
         delete sireAllowedToAddress[_matronId];
         delete sireAllowedToAddress[_sireId];
+        
+        pregnantMonsters++;
 
         // Emit the pregnancy event.
         emit Pregnant(monsterIndexToOwner[_matronId], _matronId, _sireId, matron.cooldownEndTimestamp);
@@ -347,6 +351,7 @@ contract MonsterBreeding is MonsterOwnership {
         // set is what marks a matron as being pregnant.)
         delete matron.siringWithId;
 
+        pregnantMonsters--;
         
         // Send the balance fee to the person who made birth happen.
         msg.sender.transfer(autoBirthFee);

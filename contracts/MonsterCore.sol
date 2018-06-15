@@ -149,7 +149,13 @@ contract MonsterCore is MonsterMinting {
     // @dev Allows the CFO to capture the balance available to the contract.
     function withdrawBalance() external onlyCFO {
         uint256 balance = address(this).balance;
-        cfoAddress.transfer(balance);
+        
+        uint256 subtractFees = (pregnantMonsters + 1) * autoBirthFee;
+
+        if (balance > subtractFees) {
+            cfoAddress.transfer(balance - subtractFees);
+        }
+
     }
     
     /// @dev Transfers the balance of the sale auction contract
