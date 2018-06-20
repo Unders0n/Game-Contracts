@@ -48,8 +48,8 @@ contract MonsterFood {
     }
     
     address public ownerAddress;
-    Food[] foodArray;
-    mapping (uint16 => uint32) codeToFoodIndex;
+    
+    mapping (uint16 => Food) codeToFoodIndex;
     
     function setOwner(address newOwner) public onlyOwner{
         require(newOwner != address(0));
@@ -69,7 +69,7 @@ contract MonsterFood {
     function createFood(uint _feedingScore, uint _priceWei, uint _code, uint _cdReduction, uint _application, uint _potionEffect) external onlyOwner returns(uint) {
         require(_feedingScore > 0 || _cdReduction > 0 || _potionEffect > 0);
         require(_application > 0);
-        
+        require(_code == uint(uint16(_code)));
         
         Food memory _food = Food({
             feedingScore: uint16(_feedingScore),
@@ -81,20 +81,19 @@ contract MonsterFood {
             exists: true
         });
         
-        uint256 newFoodIndex = foodArray.push(_food) - 1;
-        require(newFoodIndex == uint256(uint32(newFoodIndex)));
-        codeToFoodIndex[uint16(_code)] = uint32(newFoodIndex);
+        //uint256 newFoodIndex = foodArray.push(_food) - 1;
+        //require(newFoodIndex == uint256(uint32(newFoodIndex)));
+        codeToFoodIndex[uint16(_code)] = _food;
         
         emit FoodCreated(_food.code);
-        return newFoodIndex;
+        return _food.code;
     }
     
     function feedMonster(address originalCaller, uint foodCode, uint generation, uint growScore, uint level, uint cooldowns, uint siringWithId, uint potionEffect) public payable
     returns(uint growScore_, uint level_, uint potionEffect_, uint cooldowns_)
     {
         require(originalCaller != address(0));
-        uint32 foodId = codeToFoodIndex[uint16(foodCode)];
-        Food storage _food = foodArray[foodId];
+        Food storage _food = codeToFoodIndex[uint16(foodCode)];
         
         require(msg.value >= _food.priceWei);
         require(checkFood(_food, level, siringWithId, cooldowns));
@@ -291,8 +290,7 @@ contract MonsterFood {
         uint256 potionEffect,
         bool exists
     ) {
-        uint32 foodId = codeToFoodIndex[uint16(_foodCode)];
-        Food storage _food = foodArray[foodId];
+        Food storage _food = codeToFoodIndex[uint16(_foodCode)];
         require(_food.exists);
         feedingScore = uint(_food.feedingScore);
         exists = _food.exists;
@@ -304,9 +302,7 @@ contract MonsterFood {
     
     
     function deleteFood(uint _code) public onlyOwner {
-        uint _id = codeToFoodIndex[uint16(_code)];
         delete codeToFoodIndex[uint16(_code)];
-        delete foodArray[_id];
         emit FoodDeleted(_code);
     }
     
