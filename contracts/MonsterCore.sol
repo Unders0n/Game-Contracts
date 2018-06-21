@@ -86,6 +86,8 @@ contract MonsterCore is MonsterMinting {
             msg.sender == address(siringAuction)
             ||
             msg.sender == address(battlesContract)
+            ||
+            msg.sender == address(monsterFood)
         );
     }
 
