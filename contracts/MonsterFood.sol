@@ -104,6 +104,9 @@ contract MonsterFood {
         (level_, growScore_) = applyGrowScore(_food, level, generation, growScore);
         cooldowns_ = applyCDR(_food, cooldowns_);
         (potionEffect_, cooldowns_) = applyPotion(_food, cooldowns_, potionEffect);
+        
+        uint _return = msg.value - _food.priceWei;
+        originalCaller.transfer(_return);
     }
     
     function applyPotion(Food food, uint cooldowns, uint potionEffect) internal view returns(uint newPotionEffect, uint newCooldowns)
