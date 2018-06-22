@@ -111,7 +111,7 @@ contract MonsterCore is MonsterMinting {
         uint256 cooldowns
         
     ) {
-        Monster storage mon = monsters[_id];
+        MonsterLib.Monster memory mon = readMonster(_id);
 
         birthTime = mon.birthTime;
         generation = mon.generation;
@@ -124,11 +124,7 @@ contract MonsterCore is MonsterMinting {
         growScore = mon.growScore;
         level = mon.level;
         potionEffect = mon.potionEffect;
-        
-        cooldowns = 0;
-        cooldowns = MonsterLib.setBits(cooldowns, mon.cooldownEndTimestamp, 64, 0);
-        cooldowns = MonsterLib.setBits(cooldowns, mon.potionExpire, 64, 64);
-        cooldowns = MonsterLib.setBits(cooldowns, mon.foodCooldownEndTimestamp, 64, 128);
+        cooldowns = MonsterLib.mixCooldowns(mon.cooldownEndTimestamp, mon.foodCooldownEndTimestamp, mon.potionExpire, mon.battleCounter);
     }
 
     /// @dev Override unpause so it requires all external contract addresses
@@ -142,6 +138,7 @@ contract MonsterCore is MonsterMinting {
         require(monsterFood != address(0));
         require(battlesContract != address(0));
         require(geneScience != address(0));
+        require(monsterStorage != address(0));
         require(newContractAddress == address(0));
 
         // Actually unpause the contract.
@@ -152,7 +149,7 @@ contract MonsterCore is MonsterMinting {
     function withdrawBalance() external onlyCFO {
         uint256 balance = address(this).balance;
         
-        uint256 subtractFees = (pregnantMonsters + 1) * autoBirthFee;
+        uint256 subtractFees = (monsterStorage.pregnantMonsters() + 1) * autoBirthFee;
 
         if (balance > subtractFees) {
             cfoAddress.transfer(balance - subtractFees);

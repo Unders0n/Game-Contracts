@@ -16,7 +16,7 @@ contract MonsterBreeding is MonsterOwnership {
     ///  the COO role as the gas price changes.
     uint256 public autoBirthFee = 2 finney;
     
-    uint256 public pregnantMonsters;
+    
 
     
 
@@ -45,7 +45,7 @@ contract MonsterBreeding is MonsterOwnership {
     /// @dev Checks that a given monster is able to breed. Requires that the
     ///  current cooldown is finished (for sires) and also checks that there is
     ///  no pending pregnancy.
-    function _isReadyToBreed(Monster _monster) internal view returns (bool) {
+    function _isReadyToBreed(MonsterLib.Monster _monster) internal view returns (bool) {
         // In addition to checking the cooldownEndTimestamp, we also need to check to see if
         // the cat has a pending birth; there can be some period of time between the end
         // of the pregnacy timer and the birth event.
@@ -56,30 +56,32 @@ contract MonsterBreeding is MonsterOwnership {
     ///  and matron have the same owner, or if the sire has given siring permission to
     ///  the matron's owner (via approveSiring()).
     function _isSiringPermitted(uint256 _sireId, uint256 _matronId) internal view returns (bool) {
-        address matronOwner = monsterIndexToOwner[_matronId];
-        address sireOwner = monsterIndexToOwner[_sireId];
+        address matronOwner = monsterStorage.monsterIndexToOwner(_matronId);
+        address sireOwner = monsterStorage.monsterIndexToOwner(_sireId);
 
         // Siring is okay if they have same owner, or if the matron's owner was given
         // permission to breed with this sire.
-        return (matronOwner == sireOwner || sireAllowedToAddress[_sireId] == matronOwner);
+        return (matronOwner == sireOwner || monsterStorage.sireAllowedToAddress(_sireId) == matronOwner);
     }
 
     /// @dev Set the cooldownEndTime for the given monster, based on its current cooldownIndex.
     ///  Also increments the cooldownIndex (unless it has hit the cap).
     /// @param _monster A reference to the monster in storage which needs its timer started.
-    function _triggerCooldown(Monster storage _monster, uint increaseIndex) internal {
+    function _triggerCooldown(uint monsterId, MonsterLib.Monster memory _monster, uint increaseIndex) internal {
 
-        _monster.cooldownEndTimestamp = uint64(actionCooldowns[_monster.cooldownIndex] + now);
-
+        uint cooldownEndTimestamp = uint64(actionCooldowns[_monster.cooldownIndex] + now);
+        uint newCooldownIndex = _monster.cooldownIndex;
         // Increment the breeding count, clamping it at 13, which is the length of the
         // cooldowns array. We could check the array size dynamically, but hard-coding
         // this as a constant saves gas. Yay, Solidity!
         if(increaseIndex > 0)
         {
-            if (_monster.cooldownIndex < 13) {
-                _monster.cooldownIndex += 1;
+            if (newCooldownIndex < 13) {
+                newCooldownIndex += 1;
             }
         }
+        
+        monsterStorage.setActionCooldown(monsterId, newCooldownIndex, cooldownEndTimestamp);
     }
     
     uint32[14] public actionCooldowns = [
@@ -108,7 +110,7 @@ contract MonsterBreeding is MonsterOwnership {
         whenNotPaused
     {
         require(_owns(msg.sender, _sireId));
-        sireAllowedToAddress[_sireId] = _addr;
+        monsterStorage.setSireAllowedToAddress(_sireId, _addr);
     }
 
     /// @dev Updates the minimum payment required for calling giveBirthAuto(). Can only
@@ -120,7 +122,7 @@ contract MonsterBreeding is MonsterOwnership {
 
     /// @dev Checks to see if a given monster is pregnant and (if so) if the gestation
     ///  period has passed.
-    function _isReadyToGiveBirth(Monster _matron) private view returns (bool) {
+    function _isReadyToGiveBirth(MonsterLib.Monster _matron) private view returns (bool) {
         return (_matron.siringWithId != 0) && (_matron.cooldownEndTimestamp <= now);
     }
 
@@ -133,7 +135,7 @@ contract MonsterBreeding is MonsterOwnership {
         returns (bool)
     {
         require(_monsterId > 0);
-        Monster storage monster = monsters[_monsterId];
+        MonsterLib.Monster memory monster = readMonster(_monsterId);
         return _isReadyToBreed(monster);
     }
 
@@ -146,7 +148,8 @@ contract MonsterBreeding is MonsterOwnership {
     {
         require(_monsterId > 0);
         // A monster is pregnant if and only if this field is set
-        return monsters[_monsterId].siringWithId != 0;
+        MonsterLib.Monster memory monster = readMonster(_monsterId);
+        return monster.siringWithId != 0;
     }
 
     /// @dev Internal check to see if a given sire and matron are a valid mating pair. DOES NOT
@@ -156,13 +159,13 @@ contract MonsterBreeding is MonsterOwnership {
     /// @param _sire A reference to the monster struct of the potential sire.
     /// @param _sireId The sire's ID
     function _isValidMatingPair(
-        Monster storage _matron,
+        MonsterLib.Monster _matron,
         uint256 _matronId,
-        Monster storage _sire,
+        MonsterLib.Monster _sire,
         uint256 _sireId
     )
         private
-        view
+        pure
         returns(bool)
     {
         // A monster can't breed with itself!
@@ -203,8 +206,8 @@ contract MonsterBreeding is MonsterOwnership {
         view
         returns (bool)
     {
-        Monster storage matron = monsters[_matronId];
-        Monster storage sire = monsters[_sireId];
+        MonsterLib.Monster memory matron = readMonster(_matronId);
+        MonsterLib.Monster memory sire = readMonster(_sireId);
         return _isValidMatingPair(matron, _matronId, sire, _sireId);
     }
 
@@ -220,8 +223,8 @@ contract MonsterBreeding is MonsterOwnership {
     {
         require(_matronId > 0);
         require(_sireId > 0);
-        Monster storage matron = monsters[_matronId];
-        Monster storage sire = monsters[_sireId];
+        MonsterLib.Monster memory matron = readMonster(_matronId);
+        MonsterLib.Monster memory sire = readMonster(_sireId);
         return _isValidMatingPair(matron, _matronId, sire, _sireId) &&
             _isSiringPermitted(_sireId, _matronId);
     }
@@ -230,25 +233,27 @@ contract MonsterBreeding is MonsterOwnership {
     ///  requirements have been checked.
     function _breedWith(uint256 _matronId, uint256 _sireId) internal {
         // Grab a reference to the Kitties from storage.
-        Monster storage sire = monsters[_sireId];
-        Monster storage matron = monsters[_matronId];
+        MonsterLib.Monster memory sire = readMonster(_sireId);
+        MonsterLib.Monster memory matron = readMonster(_matronId);
 
         // Mark the matron as pregnant, keeping track of who the sire is.
-        matron.siringWithId = uint32(_sireId);
+        monsterStorage.setSiringWith(_matronId, _sireId);
+        
 
         // Trigger the cooldown for both parents.
-        _triggerCooldown(sire, 1);
-        _triggerCooldown(matron, 1);
+        _triggerCooldown(_sireId, sire, 1);
+        _triggerCooldown(_matronId, matron, 1);
 
         // Clear siring permission for both parents. This may not be strictly necessary
         // but it's likely to avoid confusion!
-        delete sireAllowedToAddress[_matronId];
-        delete sireAllowedToAddress[_sireId];
-        
-        pregnantMonsters++;
+        monsterStorage.setSireAllowedToAddress(_matronId, address(0));
+        monsterStorage.setSireAllowedToAddress(_sireId, address(0));
+
+        uint pregnantMonsters = monsterStorage.pregnantMonsters();
+        monsterStorage.setPregnantMonsters(pregnantMonsters + 1);
 
         // Emit the pregnancy event.
-        emit Pregnant(monsterIndexToOwner[_matronId], _matronId, _sireId, matron.cooldownEndTimestamp);
+        emit Pregnant(monsterStorage.monsterIndexToOwner(_matronId), _matronId, _sireId, matron.cooldownEndTimestamp);
     }
 
     /// @notice Breed a monster you own (as matron) with a sire that you own, or for which you
@@ -284,13 +289,13 @@ contract MonsterBreeding is MonsterOwnership {
         require(_isSiringPermitted(_sireId, _matronId));
 
         // Grab a reference to the potential matron
-        Monster storage matron = monsters[_matronId];
+        MonsterLib.Monster memory matron = readMonster(_matronId);
 
         // Make sure matron isn't pregnant, or in the middle of a siring cooldown
         require(_isReadyToBreed(matron));
 
         // Grab a reference to the potential sire
-        Monster storage sire = monsters[_sireId];
+        MonsterLib.Monster memory sire = readMonster(_sireId);
 
         // Make sure sire isn't pregnant, or in the middle of a siring cooldown
         require(_isReadyToBreed(sire));
@@ -321,7 +326,7 @@ contract MonsterBreeding is MonsterOwnership {
         returns(uint256)
     {
         // Grab a reference to the matron in storage.
-        Monster storage matron = monsters[_matronId];
+        MonsterLib.Monster memory matron = readMonster(_matronId);
 
         // Check that the matron is a valid cat.
         require(matron.birthTime != 0);
@@ -331,7 +336,7 @@ contract MonsterBreeding is MonsterOwnership {
 
         // Grab a reference to the sire in storage.
         uint256 sireId = matron.siringWithId;
-        Monster storage sire = monsters[sireId];
+        MonsterLib.Monster memory sire = readMonster(sireId);
 
         // Determine the higher generation number of the two parents
         uint16 parentGen = matron.generation;
@@ -344,14 +349,16 @@ contract MonsterBreeding is MonsterOwnership {
         uint256 childBattleGenes = geneScience.mixBattleGenes(matron.battleGenes, sire.battleGenes, block.number - 1);
 
         // Make the new kitten!
-        address owner = monsterIndexToOwner[_matronId];
+        address owner = monsterStorage.monsterIndexToOwner(_matronId);
         uint256 monsterId = _createMonster(_matronId, matron.siringWithId, parentGen + 1, childGenes, childBattleGenes, 0, owner);
 
         // Clear the reference to sire from the matron (REQUIRED! Having siringWithId
         // set is what marks a matron as being pregnant.)
-        delete matron.siringWithId;
+        monsterStorage.setSiringWith(_matronId, 0);
 
-        pregnantMonsters--;
+        uint pregnantMonsters = monsterStorage.pregnantMonsters();
+        monsterStorage.setPregnantMonsters(pregnantMonsters - 1);
+
         
         // Send the balance fee to the person who made birth happen.
         msg.sender.transfer(autoBirthFee);

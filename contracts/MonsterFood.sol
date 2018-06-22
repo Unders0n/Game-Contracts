@@ -25,6 +25,11 @@ contract MonsterFood {
         _;
     }
     
+    modifier onlyCore() {
+        require(msg.sender == address(nonFungibleContract));
+        _;
+    }
+    
     function setTokenContract(address _nftAddress) external onlyOwner
     {
         ERC721 candidateContract = ERC721(_nftAddress);
@@ -89,29 +94,35 @@ contract MonsterFood {
         return _food.code;
     }
     
-    function feedMonster(address originalCaller, uint foodCode, uint generation, uint growScore, uint level, uint cooldowns, uint siringWithId, uint potionEffect) public payable
-    returns(uint growScore_, uint level_, uint potionEffect_, uint cooldowns_)
+    function feedMonster(address originalCaller, uint foodCode, uint p1, uint p2, uint p3) onlyCore public payable
+    returns(uint p1_, uint p2_, uint p3_)
     {
         require(originalCaller != address(0));
         Food storage _food = codeToFoodIndex[uint16(foodCode)];
-        
         require(msg.value >= _food.priceWei);
-        require(checkFood(_food, level, siringWithId, cooldowns));
+        
+        MonsterLib.Monster memory mon = MonsterLib.decodeMonsterBits(p1, p2, p3);
+        
+        uint cooldowns_;
+        cooldowns_ = MonsterLib.mixCooldowns(mon.cooldownEndTimestamp, mon.foodCooldownEndTimestamp, mon.potionExpire, mon.battleCounter);
+        require(checkFood(_food, mon.level, mon.siringWithId, cooldowns_));
 
-        cooldowns_ = cooldowns;
+        
         
         cooldowns_ = applyFoodCooldown(_food, cooldowns_);
-        (level_, growScore_) = applyGrowScore(_food, level, generation, growScore);
+        (mon.level, mon.growScore) = applyGrowScore(_food, mon.level, mon.generation, mon.growScore);
         cooldowns_ = applyCDR(_food, cooldowns_);
-        (potionEffect_, cooldowns_) = applyPotion(_food, cooldowns_, potionEffect);
+        (mon.potionEffect, cooldowns_) = applyPotion(_food, cooldowns_, mon.potionEffect);
         
+        (mon.cooldownEndTimestamp, mon.foodCooldownEndTimestamp, mon.potionExpire, mon.battleCounter) = MonsterLib.unmixCooldowns(cooldowns_);
+        (p1_, p2_, p3_) = MonsterLib.encodeMonsterBits(mon);
         uint _return = msg.value - _food.priceWei;
         originalCaller.transfer(_return);
     }
     
-    function applyPotion(Food food, uint cooldowns, uint potionEffect) internal view returns(uint newPotionEffect, uint newCooldowns)
+    function applyPotion(Food food, uint cooldowns, uint potionEffect) internal view returns(uint8 newPotionEffect, uint newCooldowns)
     {
-        newPotionEffect = potionEffect;
+        newPotionEffect = uint8(potionEffect);
         newCooldowns = cooldowns;
         
         if(food.potionEffect == 0)
@@ -145,10 +156,10 @@ contract MonsterFood {
     }
     
     function applyGrowScore(Food food, uint level, uint generation, uint growScore) internal pure 
-        returns(uint newLevel, uint newGrowScore)
+        returns(uint8 newLevel, uint16 newGrowScore)
     {
-        newLevel = level;
-        newGrowScore = growScore;
+        newLevel = uint8(level);
+        newGrowScore = uint16(growScore);
         
         if(food.feedingScore == 0)
         {
@@ -161,11 +172,11 @@ contract MonsterFood {
         }
         
         uint reqiredScore = getLevelupScoreRequired(newLevel, generation);
-        newGrowScore = growScore + food.feedingScore;
+        newGrowScore = uint16(growScore + food.feedingScore);
         
         if(newGrowScore >= reqiredScore)
         {
-            newGrowScore = newGrowScore - reqiredScore;
+            newGrowScore = uint16(newGrowScore - reqiredScore);
             newLevel += 1;
         }
         
@@ -174,7 +185,7 @@ contract MonsterFood {
             reqiredScore = getLevelupScoreRequired(newLevel, generation);
             if(newGrowScore >= reqiredScore)
             {
-                newGrowScore = newGrowScore - reqiredScore;
+                newGrowScore = uint16(newGrowScore - reqiredScore);
                 newLevel += 1;
             }
         }
