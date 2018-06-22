@@ -59,9 +59,6 @@ contract MonsterCore is MonsterMinting {
 
         // the creator of the contract is also the initial COO
         cooAddress = msg.sender;
-
-        // start with the mythical monster 0 - so we don't have generation-0 parent issues
-        _createMonster(0, 0, 0, uint256(-1), 0, 0, address(0));
     }
 
     /// @dev Used to mark the smart contract as upgraded, in case there is a serious

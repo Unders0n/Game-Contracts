@@ -8,10 +8,15 @@ import "./ERC721.sol";
 contract MonsterStorage is Ownable
 {
     ERC721 public nonFungibleContract;
+    
+    bool public isMonsterStorage = true;
+    
     constructor(address _nftAddress) public
     {
         ERC721 candidateContract = ERC721(_nftAddress);
         nonFungibleContract = candidateContract;
+        _createMonster(0, 0, 0, uint256(-1), 0, 0);
+        monsterIndexToOwner[0] = address(0);
     }
     
     function setTokenContract(address _nftAddress) external onlyOwner
@@ -21,7 +26,7 @@ contract MonsterStorage is Ownable
     }
     
     modifier onlyCore() {
-        require(msg.sender == address(nonFungibleContract));
+        require(msg.sender != address(0) && msg.sender == address(nonFungibleContract));
         _;
     }
     
@@ -127,12 +132,35 @@ contract MonsterStorage is Ownable
         require(_sireId == uint256(uint32(_sireId)));
         require(_generation == uint256(uint16(_generation)));
 
+        uint256 newMonsterId = _createMonster( _matronId,
+         _sireId,
+         _generation,
+         _genes,
+         _battleGenes,
+         _level);
+
+        // It's probably never going to happen, 4 billion monsters is A LOT, but
+        // let's just be 100% sure we never let this happen.
+        require(newMonsterId == uint256(uint32(newMonsterId)));
+
+        return newMonsterId;
+    }
+    
+    function _createMonster(
+        uint256 _matronId,
+        uint256 _sireId,
+        uint256 _generation,
+        uint256 _genes,
+        uint256 _battleGenes,
+        uint256 _level
+    ) internal returns(uint)
+    {
         // New monster starts with the same cooldown as parent gen/2
         uint16 cooldownIndex = uint16(_generation / 2);
         if (cooldownIndex > 13) {
             cooldownIndex = 13;
         }
-
+        
         MonsterLib.Monster memory _monster = MonsterLib.Monster({
             genes: _genes,
             birthTime: uint64(now),
@@ -151,11 +179,7 @@ contract MonsterStorage is Ownable
             battleCounter: 0
         });
         uint256 newMonsterId = monsters.push(_monster) - 1;
-
-        // It's probably never going to happen, 4 billion monsters is A LOT, but
-        // let's just be 100% sure we never let this happen.
-        require(newMonsterId == uint256(uint32(newMonsterId)));
-
+        
         return newMonsterId;
     }
     
@@ -238,41 +262,4 @@ contract MonsterStorage is Ownable
         
     }
     
-    /// @notice Returns all the relevant information about a specific monster.
-    /// @param _id The ID of the monster of interest.
-    function getMonster(uint256 _id)
-        external
-        view
-        returns (
-        uint256 birthTime,
-        uint256 generation,
-        uint256 genes,
-        uint256 battleGenes,
-        uint256 cooldownIndex,
-        uint256 matronId,
-        uint256 sireId,
-        uint256 siringWithId,
-        uint256 growScore,
-        uint256 level,
-        uint256 potionEffect,
-        uint256 cooldowns
-        
-    ) {
-        MonsterLib.Monster storage mon = monsters[_id];
-
-        birthTime = mon.birthTime;
-        generation = mon.generation;
-        genes = mon.genes;
-        matronId = mon.matronId;
-        sireId = mon.sireId;
-        siringWithId = mon.siringWithId;
-        cooldownIndex = mon.cooldownIndex;
-        battleGenes = mon.battleGenes;
-        growScore = mon.growScore;
-        level = mon.level;
-        potionEffect = mon.potionEffect;
-        
-        //uint cooldownEndTimestamp, uint foodCooldownEndTimestamp, uint potionExpire, uint battleCounter
-        cooldowns = MonsterLib.mixCooldowns(mon.cooldownEndTimestamp, mon.foodCooldownEndTimestamp, mon.potionExpire, mon.battleCounter);
-    }
 }

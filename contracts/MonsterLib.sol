@@ -95,6 +95,8 @@ library MonsterLib {
         cooldowns = setBits(cooldowns, potionExpire, 64, 64);
         cooldowns = setBits(cooldowns, foodCooldownEndTimestamp, 64, 128);
         cooldowns = setBits(cooldowns, battleCounter, 8, 192);
+        
+        return cooldowns;
     }
     
     function unmixCooldowns(uint cooldowns) public pure returns(uint64 cooldownEndTimestamp, uint64 potionExpire, uint64 foodCooldownEndTimestamp, uint8 battleCounter) 
@@ -167,44 +169,7 @@ library MonsterLib {
         mon.battleCounter = uint8(getBits(p3, 224, 8));
     }
     
-    function encodeMonster(
-        uint256 birthTime,
-        uint256 generation,
-        uint256 genes,
-        uint256 battleGenes,
-        uint256 cooldownIndex,
-        uint256 matronId,
-        uint256 sireId,
-        uint256 siringWithId,
-        uint256 growScore,
-        uint256 level,
-        uint256 potionEffect,
-        uint256 cooldowns) 
-        internal pure returns(Monster monster)
-    {
-        Monster memory mon = Monster({
-            genes: genes,
-            birthTime: uint64(birthTime),
-            matronId: uint32(matronId),
-            sireId: uint32(sireId),
-            siringWithId: uint32(siringWithId),
-            cooldownIndex: uint16(cooldownIndex),
-            generation: uint16(generation),
-            battleGenes: uint64(battleGenes),
-            level: uint8(level),
-            growScore: uint16(growScore),
-            potionEffect: uint8(potionEffect),
-            cooldownEndTimestamp: 0,
-            potionExpire: 0,
-            foodCooldownEndTimestamp : 0,
-            battleCounter: 0
-        });
-        
-        //mon.cooldownIndex = _cooldownIndex;
-        (mon.cooldownEndTimestamp, mon.potionExpire, mon.foodCooldownEndTimestamp, mon.battleCounter) = unmixCooldowns(cooldowns);
-        
-        return mon;
-    }
+    
     
     
 }

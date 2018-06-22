@@ -34,6 +34,16 @@ contract MonsterBase is MonsterAccessControl {
     /// @dev The address of the sibling contract that is used to implement the sooper-sekret
     ///  genetic combination algorithm.
     MonsterGeneticsInterface public geneScience;
+    
+    function setMonsterStorageAddress(address _address) external onlyCEO {
+        MonsterStorage candidateContract = MonsterStorage(_address);
+
+        // NOTE: verify that a contract is what we expect
+        require(candidateContract.isMonsterStorage());
+
+        // Set the new contract address
+        monsterStorage = candidateContract;
+    }
 
 
     /// @dev Assigns ownership of a specific Monster to an address.

@@ -67,7 +67,7 @@ contract MonsterBreeding is MonsterOwnership {
     /// @dev Set the cooldownEndTime for the given monster, based on its current cooldownIndex.
     ///  Also increments the cooldownIndex (unless it has hit the cap).
     /// @param _monster A reference to the monster in storage which needs its timer started.
-    function _triggerCooldown(uint monsterId, MonsterLib.Monster memory _monster, uint increaseIndex) internal {
+    function _triggerCooldown(uint monsterId, MonsterLib.Monster _monster, uint increaseIndex) internal {
 
         uint cooldownEndTimestamp = uint64(actionCooldowns[_monster.cooldownIndex] + now);
         uint newCooldownIndex = _monster.cooldownIndex;
