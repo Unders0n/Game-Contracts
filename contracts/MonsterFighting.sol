@@ -56,7 +56,7 @@ contract MonsterFighting is MonsterFeeding {
         
         for(i = 0; i < 10; i++){
             monsterId = monsterIds[i];
-            Monster storage monster = monsters[monsterId];
+            MonsterLib.Monster memory monster = readMonster(monsterId);
             uint bc = monster.battleCounter + 1;
             uint increaseIndex = 0;
             if(bc >= 10)
@@ -65,7 +65,7 @@ contract MonsterFighting is MonsterFeeding {
                 increaseIndex = 1;
             }
             monster.battleCounter = uint8(bc);
-            _triggerCooldown(monster, increaseIndex);
+            _triggerCooldown(monsterId, monster, increaseIndex);
         }
         
         

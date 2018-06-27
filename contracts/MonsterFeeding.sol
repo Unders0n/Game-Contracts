@@ -20,33 +20,14 @@ contract MonsterFeeding is MonsterBreeding {
     }
     
     function feedMonster(uint _monsterId, uint _foodCode) external payable{
-        Monster storage monster = monsters[_monsterId];
-        
-        uint cooldowns = 0;
-        cooldowns = MonsterLib.setBits(cooldowns, monster.cooldownEndTimestamp, 64, 0);
-        cooldowns = MonsterLib.setBits(cooldowns, monster.potionExpire, 64, 64);
-        cooldowns = MonsterLib.setBits(cooldowns, monster.foodCooldownEndTimestamp, 64, 128);
-        
-        (uint newGrowScore, uint newLevel, uint potionEffect, uint newCooldowns) = 
-                monsterFood.feedMonster.value(msg.value)(
-                    msg.sender,
-                    _foodCode,
-                monster.generation,
-                monster.growScore, 
-                monster.level, 
-                cooldowns, 
-                monster.siringWithId,
-                monster.potionEffect);
-        
-        
-        monster.growScore = uint16(newGrowScore);
-        monster.level = uint8(newLevel);
-        monster.cooldownEndTimestamp = uint64(MonsterLib.getBits(newCooldowns, 0, 64));
-        monster.potionEffect = uint8(potionEffect);
-        monster.potionExpire = uint64(MonsterLib.getBits(newCooldowns, 64, 64));
-        monster.foodCooldownEndTimestamp = uint64(MonsterLib.getBits(newCooldowns, 128, 64));
 
-        emit MonsterFed(_monsterId, monster.growScore);
+        (uint p1, uint p2, uint p3) = monsterStorage.getMonsterBits(_monsterId);
+        
+        (p1, p2, p3) = monsterFood.feedMonster.value(msg.value)( msg.sender, _foodCode, p1, p2, p3);
+        
+        monsterStorage.setMonsterBits(_monsterId, p1, p2, p3);
+
+        emit MonsterFed(_monsterId, 0);
         
     }
 }

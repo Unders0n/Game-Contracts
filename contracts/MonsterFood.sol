@@ -25,6 +25,11 @@ contract MonsterFood {
         _;
     }
     
+    modifier onlyCore() {
+        require(msg.sender == address(nonFungibleContract));
+        _;
+    }
+    
     function setTokenContract(address _nftAddress) external onlyOwner
     {
         ERC721 candidateContract = ERC721(_nftAddress);
@@ -32,10 +37,9 @@ contract MonsterFood {
     }
     
     //application bits by offset:
-    //0 - cheeper
-    //1 - cub
-    //2 - mom
-    //3 - mature (not mom)
+    //0 (1) - cheeper
+    //1 (2) - mom
+    //2 (4) - mature (not mom)
     
     struct Food {
         uint16 code;
@@ -89,100 +93,82 @@ contract MonsterFood {
         return _food.code;
     }
     
-    function feedMonster(address originalCaller, uint foodCode, uint generation, uint growScore, uint level, uint cooldowns, uint siringWithId, uint potionEffect) public payable
-    returns(uint growScore_, uint level_, uint potionEffect_, uint cooldowns_)
+    function feedMonster(address originalCaller, uint foodCode, uint p1, uint p2, uint p3) onlyCore public payable
+    returns(uint p1_, uint p2_, uint p3_)
     {
         require(originalCaller != address(0));
         Food storage _food = codeToFoodIndex[uint16(foodCode)];
-        
         require(msg.value >= _food.priceWei);
-        require(checkFood(_food, level, siringWithId, cooldowns));
+        
+        MonsterLib.Monster memory mon = MonsterLib.decodeMonsterBits(p1, p2, p3);
+        
+        require(checkFood(_food, mon));
 
-        cooldowns_ = cooldowns;
-        
-        cooldowns_ = applyFoodCooldown(_food, cooldowns_);
-        (level_, growScore_) = applyGrowScore(_food, level, generation, growScore);
-        cooldowns_ = applyCDR(_food, cooldowns_);
-        (potionEffect_, cooldowns_) = applyPotion(_food, cooldowns_, potionEffect);
-        
+        applyFoodCooldown(_food, mon);
+        applyGrowScore(_food, mon);
+        applyCDR(_food, mon);
+        applyPotion(_food, mon);
+
+        (p1_, p2_, p3_) = MonsterLib.encodeMonsterBits(mon);
         uint _return = msg.value - _food.priceWei;
         originalCaller.transfer(_return);
     }
     
-    function applyPotion(Food food, uint cooldowns, uint potionEffect) internal view returns(uint newPotionEffect, uint newCooldowns)
+    function applyPotion(Food food, MonsterLib.Monster monster) internal view
     {
-        newPotionEffect = potionEffect;
-        newCooldowns = cooldowns;
-        
         if(food.potionEffect == 0)
         {
             return;
         }
         
-        uint potionExpire = now + potionDuration;
-        newCooldowns = MonsterLib.setBits(newCooldowns, potionExpire, 64, 64);
+        monster.potionExpire = uint64(now + potionDuration);
+        monster.potionEffect = food.potionEffect;
     }
     
-    function applyCDR(Food food, uint cooldowns) internal pure returns(uint newCooldowns)
+    function applyCDR(Food food, MonsterLib.Monster monster) internal pure
     {
-        newCooldowns = cooldowns;
         if(food.cdReduction == 0)
         {
             return;
         }
         
-        uint actionCooldown = uint64(MonsterLib.getBits(cooldowns, 0, 64));
-        if(actionCooldown < food.cdReduction)
+        if(monster.cooldownEndTimestamp < food.cdReduction)
         {
-            actionCooldown = 0;
+            monster.cooldownEndTimestamp = 0;
         }
         else
         {
-            actionCooldown -= food.cdReduction;
+            monster.cooldownEndTimestamp -= food.cdReduction;
         }
-        
-        newCooldowns = MonsterLib.setBits(cooldowns, actionCooldown, 64, 0);
     }
     
-    function applyGrowScore(Food food, uint level, uint generation, uint growScore) internal pure 
-        returns(uint newLevel, uint newGrowScore)
+    function applyGrowScore(Food food, MonsterLib.Monster monster) internal pure 
     {
-        newLevel = level;
-        newGrowScore = growScore;
-        
         if(food.feedingScore == 0)
         {
             return;
         }
         
-        if(newLevel >= 2)
+        if(monster.level >= 1)
         {
             return;
         }
         
-        uint reqiredScore = getLevelupScoreRequired(newLevel, generation);
-        newGrowScore = growScore + food.feedingScore;
+        uint reqiredScore = getLevelupScoreRequired(monster.level, monster.generation);
+        monster.growScore = uint16(monster.growScore + food.feedingScore);
         
-        if(newGrowScore >= reqiredScore)
+        if(monster.growScore >= reqiredScore)
         {
-            newGrowScore = newGrowScore - reqiredScore;
-            newLevel += 1;
+            monster.growScore = uint16(monster.growScore - reqiredScore);
+            monster.level += 1;
         }
         
-        if(newLevel < 2)
-        {
-            reqiredScore = getLevelupScoreRequired(newLevel, generation);
-            if(newGrowScore >= reqiredScore)
-            {
-                newGrowScore = newGrowScore - reqiredScore;
-                newLevel += 1;
-            }
-        }
+        
     }
     
     function getLevelupScoreRequired(uint level, uint generation) public pure returns(uint)
     {
-        if(level >= 2)
+        if(level >= 1)
         {
             return 0;
         }
@@ -192,43 +178,31 @@ contract MonsterFood {
             generation = 13;
         }
         
-        uint divider = 1;
-        if(level == 0)
-        {
-            divider = 35;
-        }
-        else if (level == 1)
-        {
-            divider = 25;
-        }
+        uint divider = 25;
         
         uint scoreRequired = uint(10) * generation * generation / divider + 1;
         return scoreRequired;
     }
     
-    function applyFoodCooldown(Food food, uint cooldowns) internal view returns(uint newCooldowns)
+    function applyFoodCooldown(Food food, MonsterLib.Monster monster) internal view 
     {
-        newCooldowns = cooldowns;
         if(food.priceWei > 0)
         {
             return;
         }
-        
-        uint newFoodCooldown = now + freeFoodCooldown;
-        newCooldowns = MonsterLib.setBits(newCooldowns, newFoodCooldown, 64, 128);
+        monster.foodCooldownEndTimestamp = uint64(now + freeFoodCooldown);
     }
     
-    function checkFood(Food food, uint level, uint siringWithId, uint cooldowns) internal view returns(bool)
+    function checkFood(Food food, MonsterLib.Monster monster) internal view returns(bool)
     {
         //check monster can eat it
-        if(!checkApplication(level, siringWithId, food.application))
+        if(!checkApplication(monster.level, monster.siringWithId, food.application))
         {
             return false;
         }
         
         //if it's free check free food cooldown
-        uint foodCooldownEndTimestamp = uint64(MonsterLib.getBits(cooldowns, 128, 64));
-        if(food.priceWei == 0 && foodCooldownEndTimestamp > now)
+        if(food.priceWei == 0 && monster.foodCooldownEndTimestamp > now)
         {
             return false;
         }
@@ -237,8 +211,7 @@ contract MonsterFood {
         //otherwise there's no point in using it
         if(food.feedingScore == 0 && food.potionEffect == 0)
         {
-            uint actionCooldown = uint64(MonsterLib.getBits(cooldowns, 0, 64));
-            if(actionCooldown < now)
+            if(monster.cooldownEndTimestamp < now)
             {
                 return false;
             }
@@ -247,8 +220,7 @@ contract MonsterFood {
         //if the food is a potion then we require that previous potion has expired
         if(food.potionEffect > 0)
         {
-            uint potionExpire = uint64(MonsterLib.getBits(cooldowns, 64, 64));
-            if(potionExpire > now)
+            if(monster.potionExpire > now)
             {
                 return false;
             }
@@ -264,17 +236,13 @@ contract MonsterFood {
         {
             application = 1;
         }
-        else if(level == 1)
+        else if (siringWithId > 0)
         {
             application = 2;
         }
-        else if (siringWithId > 0)
-        {
-            application = 4;
-        }
         else
         {
-            application = 8;
+            application = 4;
         }
         
         return application & foodApplication > 0;

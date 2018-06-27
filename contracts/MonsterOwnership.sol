@@ -17,14 +17,14 @@ contract MonsterOwnership is MonsterBase, ERC721 {
     /// @param _claimant the address we are validating against.
     /// @param _tokenId monster id, only valid when > 0
     function _owns(address _claimant, uint256 _tokenId) internal view returns (bool) {
-        return monsterIndexToOwner[_tokenId] == _claimant;
+        return monsterStorage.monsterIndexToOwner(_tokenId) == _claimant;
     }
 
     /// @dev Checks if a given address currently has transferApproval for a particular Monster.
     /// @param _claimant the address we are confirming monster is approved for.
     /// @param _tokenId monster id, only valid when > 0
     function _approvedFor(address _claimant, uint256 _tokenId) internal view returns (bool) {
-        return monsterIndexToApproved[_tokenId] == _claimant;
+        return monsterStorage.monsterIndexToApproved(_tokenId) == _claimant;
     }
 
     /// @dev Marks an address as being approved for transferFrom(), overwriting any previous
@@ -33,14 +33,14 @@ contract MonsterOwnership is MonsterBase, ERC721 {
     ///  _approve() and transferFrom() are used together for putting Monsters on auction, and
     ///  there is no value in spamming the log with Approval events in that case.
     function _approve(uint256 _tokenId, address _approved) internal {
-        monsterIndexToApproved[_tokenId] = _approved;
+        monsterStorage.setMonsterIndexToApproved(_tokenId, _approved);
     }
 
     /// @notice Returns the number of Monsters owned by a specific address.
     /// @param _owner The owner address to check.
     /// @dev Required for ERC-721 compliance
     function balanceOf(address _owner) public view returns (uint256 count) {
-        return ownershipTokenCount[_owner];
+        return monsterStorage.ownershipTokenCount(_owner);
     }
 
     /// @notice Transfers a Monster to another address. If transferring to a smart
@@ -129,7 +129,7 @@ contract MonsterOwnership is MonsterBase, ERC721 {
     /// @notice Returns the total number of Monsters currently in existence.
     /// @dev Required for ERC-721 compliance.
     function totalSupply() public view returns (uint) {
-        return monsters.length - 1;
+        return monsterStorage.getMonstersCount() - 1;
     }
 
     /// @notice Returns the address currently assigned ownership of a given Monster.
@@ -139,7 +139,7 @@ contract MonsterOwnership is MonsterBase, ERC721 {
         view
         returns (address owner)
     {
-        owner = monsterIndexToOwner[_tokenId];
+        owner = monsterStorage.monsterIndexToOwner(_tokenId);
 
         require(owner != address(0));
     }
@@ -166,7 +166,7 @@ contract MonsterOwnership is MonsterBase, ERC721 {
             uint256 monsterId;
 
             for (monsterId = 1; monsterId <= totalMonsters; monsterId++) {
-                if (monsterIndexToOwner[monsterId] == _owner) {
+                if (monsterStorage.monsterIndexToOwner(monsterId) == _owner) {
                     result[resultIndex] = monsterId;
                     resultIndex++;
                 }
