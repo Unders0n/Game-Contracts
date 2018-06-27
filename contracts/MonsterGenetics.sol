@@ -51,26 +51,28 @@ contract MonsterGenetics {
     uint _geneGroupSize,
     uint _geneGroupsCount) internal pure returns(uint genesMatron_, uint genesSire_, uint randomIndex_)
     {
+        genesMatron_ = _genesMatron;
+        genesSire_ = _genesSire;
+        randomIndex_ = _randomIndex;
+        
         for(uint8 geneGroupIndex = 0; geneGroupIndex < _geneGroupsCount; geneGroupIndex++)
         {
         
             //processing each genes group separately
-            uint geneGroupMatron = uint32(MonsterLib.getBits(_genesMatron, uint8(_geneBits * _geneGroupSize * geneGroupIndex), uint8(_geneBits * _geneGroupSize)));
-            uint geneGroupSire = uint32(MonsterLib.getBits(_genesSire, uint8(_geneBits * _geneGroupSize * geneGroupIndex), uint8(_geneBits * _geneGroupSize)));
+            uint geneGroupMatron = uint32(MonsterLib.getBits(genesMatron_, uint8(_geneBits * _geneGroupSize * geneGroupIndex), uint8(_geneBits * _geneGroupSize)));
+            uint geneGroupSire = uint32(MonsterLib.getBits(genesSire_, uint8(_geneBits * _geneGroupSize * geneGroupIndex), uint8(_geneBits * _geneGroupSize)));
 
            
-            (geneGroupMatron, _randomIndex) = processRecessiveGenes(geneGroupMatron, _randomSource, _randomIndex, _geneGroupSize, _geneBits);
-            (geneGroupSire, _randomIndex) = processRecessiveGenes(geneGroupSire, _randomSource, _randomIndex, _geneGroupSize, _geneBits);
+            (geneGroupMatron, randomIndex_) = processRecessiveGenes(geneGroupMatron, _randomSource, randomIndex_, _geneGroupSize, _geneBits);
+            (geneGroupSire, randomIndex_) = processRecessiveGenes(geneGroupSire, _randomSource, randomIndex_, _geneGroupSize, _geneBits);
             
             
             //setting modified groups back in place
-            _genesMatron = MonsterLib.setBits(_genesMatron, geneGroupMatron, uint8(_geneBits * _geneGroupSize), _geneBits * _geneGroupSize * geneGroupIndex);
-            _genesSire = MonsterLib.setBits(_genesSire, geneGroupSire, uint8(_geneBits * _geneGroupSize), _geneBits * _geneGroupSize * geneGroupIndex);
+            genesMatron_ = MonsterLib.setBits(genesMatron_, geneGroupMatron, uint8(_geneBits * _geneGroupSize), _geneBits * _geneGroupSize * geneGroupIndex);
+            genesSire_ = MonsterLib.setBits(genesSire_, geneGroupSire, uint8(_geneBits * _geneGroupSize), _geneBits * _geneGroupSize * geneGroupIndex);
         }
         
-        genesMatron_ = _genesMatron;
-        genesSire_ = _genesSire;
-        randomIndex_ = _randomIndex;
+        
     }
     
     function mixGenesInner(uint _genesMatron, 
@@ -117,17 +119,15 @@ contract MonsterGenetics {
     {
         randomIndex_ = _randomIndex;
         geneGroup_ = _geneGroup;
-        bool swapped = false;
+        
         uint randomValue;
         for(uint geneIndex = _geneGroupSize-1; geneIndex > 0; geneIndex--)
         {
-            swapped = false;
             randomValue = MonsterLib.getBits(_randomSource, randomIndex_, 2);
             randomIndex_ += 2;
             if(randomValue == 0)
             {
-                _geneGroup = swapGenes(_geneGroup, geneIndex, geneIndex - 1, _geneBits);
-                swapped = true;
+                geneGroup_ = swapGenes(geneGroup_, geneIndex, geneIndex - 1, _geneBits);
             }
         }
     }
