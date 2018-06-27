@@ -160,7 +160,7 @@ contract MonsterStorage is Ownable
         if (cooldownIndex > 13) {
             cooldownIndex = 13;
         }
-        
+
         MonsterLib.Monster memory _monster = MonsterLib.Monster({
             genes: _genes,
             birthTime: uint64(now),
@@ -181,6 +181,32 @@ contract MonsterStorage is Ownable
         uint256 newMonsterId = monsters.push(_monster) - 1;
         
         return newMonsterId;
+    }
+    
+    function setLevel(uint monsterId, uint level, uint growScore) onlyCore public
+    {
+        MonsterLib.Monster storage mon = monsters[monsterId];
+        mon.level = uint8(level);
+        mon.growScore = uint16(growScore);
+    }
+    
+    function setPotion(uint monsterId, uint potionEffect, uint potionExpire) onlyCore public
+    {
+        MonsterLib.Monster storage mon = monsters[monsterId];
+        mon.potionEffect = uint8(potionEffect);
+        mon.potionExpire = uint64(potionExpire);
+    }
+    
+    function setFreeFoodCooldown(uint monsterId, uint freeFoodCooldown) onlyCore public
+    {
+        MonsterLib.Monster storage mon = monsters[monsterId];
+        mon.foodCooldownEndTimestamp = uint64(freeFoodCooldown);
+    }
+    
+    function setBattleCounter(uint monsterId, uint battleCounter) onlyCore public
+    {
+        MonsterLib.Monster storage mon = monsters[monsterId];
+        mon.battleCounter = uint8(battleCounter);
     }
     
     function setActionCooldown(uint monsterId, uint cooldownIndex, uint actionCooldown) onlyCore public

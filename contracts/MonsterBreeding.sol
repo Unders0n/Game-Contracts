@@ -49,7 +49,7 @@ contract MonsterBreeding is MonsterOwnership {
         // In addition to checking the cooldownEndTimestamp, we also need to check to see if
         // the cat has a pending birth; there can be some period of time between the end
         // of the pregnacy timer and the birth event.
-        return (_monster.siringWithId == 0) && (_monster.cooldownEndTimestamp <= uint64(now) && (_monster.level > 1));
+        return (_monster.siringWithId == 0) && (_monster.cooldownEndTimestamp <= uint64(now) && (_monster.level >= 1));
     }
 
     /// @dev Check if a sire has authorized breeding with this matron. True if both sire
