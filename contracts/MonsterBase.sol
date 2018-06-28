@@ -84,7 +84,37 @@ contract MonsterBase is MonsterAccessControl {
         internal
         returns (uint)
     {
-        uint monsterId = monsterStorage.createMonster(_matronId, _sireId, _generation, _genes, _battleGenes, _level);
+        require(_matronId == uint256(uint32(_matronId)));
+        require(_sireId == uint256(uint32(_sireId)));
+        require(_generation == uint256(uint16(_generation)));
+        
+         //New monster starts with the same cooldown as parent gen/2
+        uint16 cooldownIndex = uint16(_generation / 2);
+        if (cooldownIndex > 13) {
+            cooldownIndex = 13;
+        }
+            
+        MonsterLib.Monster memory _monster = MonsterLib.Monster({
+            genes: _genes,
+            birthTime: uint64(now),
+            cooldownEndTimestamp: uint64(0),
+            matronId: uint32(_matronId),
+            sireId: uint32(_sireId),
+            siringWithId: uint32(0),
+            cooldownIndex: uint16(cooldownIndex),
+            generation: uint16(_generation),
+            battleGenes: uint64(_battleGenes),
+            level: uint8(_level),
+            growScore: uint8(0),
+            potionEffect: uint8(0),
+            potionExpire: uint64(0),
+            foodCooldownEndTimestamp: uint64(0),
+            battleCounter: uint8(0)
+        });
+        
+        (uint p1, uint p2, uint p3) = MonsterLib.encodeMonsterBits(_monster);
+        
+        uint monsterId = monsterStorage.createMonster(p1, p2, p3);
 
         // emit the birth event
         emit Birth(

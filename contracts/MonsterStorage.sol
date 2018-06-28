@@ -15,7 +15,8 @@ contract MonsterStorage is Ownable
     {
         ERC721 candidateContract = ERC721(_nftAddress);
         nonFungibleContract = candidateContract;
-        _createMonster(0, 0, 0, uint256(-1), 0, 0);
+        MonsterLib.Monster memory mon = MonsterLib.decodeMonsterBits(uint(-1), 0, 0);
+        _createMonster(mon);
         monsterIndexToOwner[0] = address(0);
     }
     
@@ -108,36 +109,17 @@ contract MonsterStorage is Ownable
     ///  method doesn't do any checking and should only be called when the
     ///  input data is known to be valid. Will generate both a Birth event
     ///  and a Transfer event.
-    /// @param _generation The generation number of this monster, must be computed by caller.
-    /// @param _genes The monster's genetic code.
-    
-    function createMonster(
-        uint256 _matronId,
-        uint256 _sireId,
-        uint256 _generation,
-        uint256 _genes,
-        uint256 _battleGenes,
-        uint256 _level
-    )
+
+    function createMonster(uint p1, uint p2, uint p3)
         onlyCore
         public
         returns (uint)
     {
-        // These requires are not strictly necessary, our calling code should make
-        // sure that these conditions are never broken. However! _createMonster() is already
-        // an expensive call (for storage), and it doesn't hurt to be especially careful
-        // to ensure our data structures are always valid.
-        
-        require(_matronId == uint256(uint32(_matronId)));
-        require(_sireId == uint256(uint32(_sireId)));
-        require(_generation == uint256(uint16(_generation)));
 
-        uint256 newMonsterId = _createMonster( _matronId,
-         _sireId,
-         _generation,
-         _genes,
-         _battleGenes,
-         _level);
+        MonsterLib.Monster memory mon = MonsterLib.decodeMonsterBits(p1, p2, p3);
+
+
+        uint256 newMonsterId = _createMonster(mon);
 
         // It's probably never going to happen, 4 billion monsters is A LOT, but
         // let's just be 100% sure we never let this happen.
@@ -146,39 +128,9 @@ contract MonsterStorage is Ownable
         return newMonsterId;
     }
     
-    function _createMonster(
-        uint256 _matronId,
-        uint256 _sireId,
-        uint256 _generation,
-        uint256 _genes,
-        uint256 _battleGenes,
-        uint256 _level
-    ) internal returns(uint)
+    function _createMonster(MonsterLib.Monster mon) internal returns(uint)
     {
-        // New monster starts with the same cooldown as parent gen/2
-        uint16 cooldownIndex = uint16(_generation / 2);
-        if (cooldownIndex > 13) {
-            cooldownIndex = 13;
-        }
-
-        MonsterLib.Monster memory _monster = MonsterLib.Monster({
-            genes: _genes,
-            birthTime: uint64(now),
-            cooldownEndTimestamp: 0,
-            matronId: uint32(_matronId),
-            sireId: uint32(_sireId),
-            siringWithId: 0,
-            cooldownIndex: cooldownIndex,
-            generation: uint16(_generation),
-            battleGenes: uint64(_battleGenes),
-            level: uint8(_level),
-            growScore: 0,
-            potionEffect: 0,
-            potionExpire: 0,
-            foodCooldownEndTimestamp: 0,
-            battleCounter: 0
-        });
-        uint256 newMonsterId = monsters.push(_monster) - 1;
+        uint256 newMonsterId = monsters.push(mon) - 1;
         
         return newMonsterId;
     }
@@ -229,36 +181,6 @@ contract MonsterStorage is Ownable
         }
     }
     
-    function setMonster(
-        uint256 _id,
-        uint256 birthTime,
-        uint256 generation,
-        uint256 genes,
-        uint256 battleGenes,
-        uint256 cooldownIndex,
-        uint256 matronId,
-        uint256 sireId,
-        uint256 siringWithId,
-        uint256 growScore,
-        uint256 level,
-        uint256 potionEffect,
-        uint256 cooldowns
-        ) onlyCore public
-    {
-            MonsterLib.Monster storage mon = monsters[_id];
-            mon.birthTime = uint64(birthTime);
-            mon.generation = uint16(generation);
-            mon.genes = genes;
-            mon.battleGenes = uint64(battleGenes);
-            mon.cooldownIndex = uint16(cooldownIndex);
-            mon.matronId = uint32(matronId);
-            mon.sireId = uint32(sireId);
-            mon.siringWithId = uint32(siringWithId);
-            mon.growScore = uint16(growScore);
-            mon.level = uint8(level);
-            mon.potionEffect = uint8(potionEffect);
-            (mon.cooldownEndTimestamp, mon.potionExpire, mon.foodCooldownEndTimestamp, mon.battleCounter) = MonsterLib.unmixCooldowns(cooldowns);
-    }
     
     function getMonsterBits(uint monsterId) public view returns(uint p1, uint p2, uint p3)
     {
@@ -267,6 +189,22 @@ contract MonsterStorage is Ownable
     }
     
     function setMonsterBits(uint monsterId, uint p1, uint p2, uint p3) onlyCore public
+    {
+        MonsterLib.Monster storage mon = monsters[monsterId];
+        MonsterLib.Monster memory mon2 = MonsterLib.decodeMonsterBits(p1, p2, p3);
+        mon.cooldownIndex = mon2.cooldownIndex;
+        mon.siringWithId = mon2.siringWithId;
+        mon.growScore = mon2.growScore;
+        mon.level = mon2.level;
+        mon.potionEffect = mon2.potionEffect;
+        mon.cooldownEndTimestamp = mon2.cooldownEndTimestamp;
+        mon.potionExpire = mon2.potionExpire;
+        mon.foodCooldownEndTimestamp = mon2.foodCooldownEndTimestamp;
+        mon.battleCounter = mon2.battleCounter;
+        
+    }
+    
+    function setMonsterBitsFull(uint monsterId, uint p1, uint p2, uint p3) onlyCore public
     {
         MonsterLib.Monster storage mon = monsters[monsterId];
         MonsterLib.Monster memory mon2 = MonsterLib.decodeMonsterBits(p1, p2, p3);
