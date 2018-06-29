@@ -88,40 +88,6 @@ contract MonsterCore is MonsterMinting {
         );
     }
 
-    /// @notice Returns all the relevant information about a specific monster.
-    /// @param _id The ID of the monster of interest.
-    function getMonster(uint256 _id)
-        external
-        view
-        returns (
-        uint256 birthTime,
-        uint256 generation,
-        uint256 genes,
-        uint256 battleGenes,
-        uint256 cooldownIndex,
-        uint256 matronId,
-        uint256 sireId,
-        uint256 siringWithId,
-        uint256 level,
-        uint256 potionEffect,
-        uint256 cooldownEndTimestamp
-        
-    ) {
-        MonsterLib.Monster memory mon = readMonster(_id);
-
-        birthTime = mon.birthTime;
-        generation = mon.generation;
-        genes = mon.genes;
-        matronId = mon.matronId;
-        sireId = mon.sireId;
-        siringWithId = mon.siringWithId;
-        cooldownIndex = mon.cooldownIndex;
-        battleGenes = mon.battleGenes;
-        level = mon.level;
-        potionEffect = mon.potionEffect;
-        cooldownEndTimestamp = mon.cooldownEndTimestamp;
-    }
-
     /// @dev Override unpause so it requires all external contract addresses
     ///  to be set before contract can be unpaused. Also, we can't have
     ///  newContractAddress set either, because then the contract was upgraded.
@@ -134,6 +100,7 @@ contract MonsterCore is MonsterMinting {
         require(battlesContract != address(0));
         require(geneScience != address(0));
         require(monsterStorage != address(0));
+        require(monsterConstants != address(0));
         require(newContractAddress == address(0));
 
         // Actually unpause the contract.

@@ -55,22 +55,22 @@ contract MonsterMinting is MonsterAuction {
 
     /// @dev Creates a new gen0 monster with the given genes and
     ///  creates an auction for it.
-    function createGen0Auction(uint256 _genes, uint256 _battleGenes) external onlyCOO {
-        require(gen0CreatedCount < GEN0_CREATION_LIMIT);
+//    function createGen0Auction(uint256 _genes, uint256 _battleGenes) external onlyCOO {
+//        require(gen0CreatedCount < GEN0_CREATION_LIMIT);
+//
+//        uint256 monsterId = _createMonster(0, 0, 0, _genes, _battleGenes, 2, address(this));
+//        _approve(monsterId, saleAuction);
 
-        uint256 monsterId = _createMonster(0, 0, 0, _genes, _battleGenes, 2, address(this));
-        _approve(monsterId, saleAuction);
+//        saleAuction.createAuction(
+//            monsterId,
+//            GEN0_STARTING_PRICE,
+//            GEN0_ENDING_PRICE,
+//            GEN0_AUCTION_DURATION,
+//            address(this)
+//        );
 
-        saleAuction.createAuction(
-            monsterId,
-            GEN0_STARTING_PRICE,
-            GEN0_ENDING_PRICE,
-            GEN0_AUCTION_DURATION,
-            address(this)
-        );
-
-        gen0CreatedCount++;
-    }
+//        gen0CreatedCount++;
+//    }
 
    
 }

@@ -6,17 +6,7 @@ import "./MonsterLib.sol";
 
 /// @title Handles creating auctions for sale and siring of monsters.
 contract MonsterFighting is MonsterFeeding {
-    /// @dev Sets the reference to the battles contract.
-    /// @param _address - Address of battles contract.
-    function setBattlesAddress(address _address) external onlyCEO {
-        MonsterBattles candidateContract = MonsterBattles(_address);
-
-        // NOTE: verify that a contract is what we expect
-        require(candidateContract.isBattleContract());
-
-        // Set the new contract address
-        battlesContract = candidateContract;
-    }
+    
     
       function prepareForBattle(uint _param1, uint _param2, uint _param3) external payable returns(uint){
         require(_param1 > 0);

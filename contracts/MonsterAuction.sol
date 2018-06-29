@@ -5,7 +5,7 @@ import "./MonsterFighting.sol";
 /// @title Handles creating auctions for sale and siring of monsters.
 ///  This wrapper of ReverseAuction exists only so that users can create
 ///  auctions with only one transaction.
-contract MonsterAuction is MonsterFighting {
+contract MonsterAuction is MonsterFeeding {
 
     // @notice The auction contract variables are defined in MonsterBase to allow
     //  us to refer to them in MonsterOwnership to prevent accidental transfers.
