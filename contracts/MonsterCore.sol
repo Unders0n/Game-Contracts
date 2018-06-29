@@ -102,10 +102,9 @@ contract MonsterCore is MonsterMinting {
         uint256 matronId,
         uint256 sireId,
         uint256 siringWithId,
-        uint256 growScore,
         uint256 level,
         uint256 potionEffect,
-        uint256 cooldowns
+        uint256 cooldownEndTimestamp
         
     ) {
         MonsterLib.Monster memory mon = readMonster(_id);
@@ -118,10 +117,9 @@ contract MonsterCore is MonsterMinting {
         siringWithId = mon.siringWithId;
         cooldownIndex = mon.cooldownIndex;
         battleGenes = mon.battleGenes;
-        growScore = mon.growScore;
         level = mon.level;
         potionEffect = mon.potionEffect;
-        cooldowns = MonsterLib.mixCooldowns(mon.cooldownEndTimestamp, mon.foodCooldownEndTimestamp, mon.potionExpire, mon.battleCounter);
+        cooldownEndTimestamp = mon.cooldownEndTimestamp;
     }
 
     /// @dev Override unpause so it requires all external contract addresses

@@ -88,30 +88,29 @@ contract MonsterBase is MonsterAccessControl {
         require(_sireId == uint256(uint32(_sireId)));
         require(_generation == uint256(uint16(_generation)));
         
-         //New monster starts with the same cooldown as parent gen/2
-        uint16 cooldownIndex = uint16(_generation / 2);
-        if (cooldownIndex > 13) {
-            cooldownIndex = 13;
-        }
-            
+        
+        
         MonsterLib.Monster memory _monster = MonsterLib.Monster({
             genes: _genes,
             birthTime: uint64(now),
-            cooldownEndTimestamp: uint64(0),
+            cooldownEndTimestamp: 0,
             matronId: uint32(_matronId),
             sireId: uint32(_sireId),
             siringWithId: uint32(0),
-            cooldownIndex: uint16(cooldownIndex),
+            cooldownIndex: uint16(0),
             generation: uint16(_generation),
             battleGenes: uint64(_battleGenes),
             level: uint8(_level),
-            growScore: uint8(0),
+            activeGrowCooldownIndex: uint8(0),
+            activeRestCooldownIndex: uint8(0),
             potionEffect: uint8(0),
             potionExpire: uint64(0),
-            foodCooldownEndTimestamp: uint64(0),
+            cooldownStartTimestamp: uint64(now),
             battleCounter: uint8(0)
         });
         
+        
+        setMonsterGrow(_monster);
         (uint p1, uint p2, uint p3) = MonsterLib.encodeMonsterBits(_monster);
         
         uint monsterId = monsterStorage.createMonster(p1, p2, p3);
@@ -130,6 +129,25 @@ contract MonsterBase is MonsterAccessControl {
         return monsterId;
     }
     
+    function setMonsterGrow(MonsterLib.Monster monster) internal view
+    {
+         //New monster starts with the same cooldown as parent gen/2
+        uint16 cooldownIndex = uint16(monster.generation / 2);
+        if (cooldownIndex > 13) {
+            cooldownIndex = 13;
+        }
+        
+        uint gen = monster.generation;
+        if(gen > 26)
+        {
+            gen = 26;
+        }
+        
+        monster.cooldownIndex = uint16(cooldownIndex);
+        monster.activeGrowCooldownIndex = genToGrowCdIndex[gen];
+        monster.cooldownEndTimestamp = uint64(now + growCooldowns[monster.activeGrowCooldownIndex]);
+    }
+    
     function readMonster(uint monsterId) internal view returns(MonsterLib.Monster)
     {
         (uint p1, uint p2, uint p3) = monsterStorage.getMonsterBits(monsterId);
@@ -138,5 +156,41 @@ contract MonsterBase is MonsterAccessControl {
          
         return mon;
     }
+    
+    uint32[14] public growCooldowns = [
+        uint32(30 minutes),
+        uint32(1 hours),
+        uint32(1 hours),
+        uint32(2 hours),
+        uint32(2 hours),
+        uint32(4 hours),
+        uint32(4 hours),
+        uint32(8 hours),
+        uint32(8 hours),
+        uint32(16 hours),
+        uint32(16 hours),
+        uint32(24 hours),
+        uint32(24 hours),
+        uint32(48 hours)
+    ];
+    
+    uint8[27] public genToGrowCdIndex = [
+        0, 0,
+        1, 1,
+        2, 2,
+        3, 3,
+        4, 4,
+        5, 5,
+        6, 6,
+        7, 7,
+        8, 8,
+        9, 9,
+        10, 10,
+        11, 11,
+        12, 12,
+        13
+    ];
+    
+    
 
 }

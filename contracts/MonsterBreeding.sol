@@ -69,7 +69,8 @@ contract MonsterBreeding is MonsterOwnership {
     /// @param _monster A reference to the monster in storage which needs its timer started.
     function _triggerCooldown(uint monsterId, MonsterLib.Monster _monster, uint increaseIndex) internal {
 
-        uint cooldownEndTimestamp = uint64(actionCooldowns[_monster.cooldownIndex] + now);
+        uint activeRestCooldownIndex = _monster.cooldownIndex;
+        uint cooldownEndTimestamp = uint64(actionCooldowns[activeRestCooldownIndex] + now);
         uint newCooldownIndex = _monster.cooldownIndex;
         // Increment the breeding count, clamping it at 13, which is the length of the
         // cooldowns array. We could check the array size dynamically, but hard-coding
@@ -81,7 +82,7 @@ contract MonsterBreeding is MonsterOwnership {
             }
         }
         
-        monsterStorage.setActionCooldown(monsterId, newCooldownIndex, cooldownEndTimestamp);
+        monsterStorage.setActionCooldown(monsterId, newCooldownIndex, cooldownEndTimestamp, now, 0, activeRestCooldownIndex);
     }
     
     uint32[14] public actionCooldowns = [
