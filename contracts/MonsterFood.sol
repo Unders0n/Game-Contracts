@@ -36,7 +36,7 @@ contract MonsterFood {
         nonFungibleContract = candidateContract;
     }
     
-    uint[] cdPricesGrow = [
+    uint[] public cdPricesGrow = [
         1200 szabo,
         2400 szabo,
         2400 szabo,
@@ -53,7 +53,7 @@ contract MonsterFood {
         16800 szabo
         ];
         
-    uint[] cdPricesRest = [
+    uint[] public cdPricesRest = [
         1200 szabo,
         2400 szabo,
         4800 szabo,
