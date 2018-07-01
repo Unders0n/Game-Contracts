@@ -135,11 +135,10 @@ contract MonsterStorage is Ownable
         return newMonsterId;
     }
     
-    function setLevel(uint monsterId, uint level, uint growScore) onlyCore public
+    function setLevel(uint monsterId, uint level) onlyCore public
     {
         MonsterLib.Monster storage mon = monsters[monsterId];
         mon.level = uint8(level);
-        mon.growScore = uint16(growScore);
     }
     
     function setPotion(uint monsterId, uint potionEffect, uint potionExpire) onlyCore public
@@ -149,23 +148,26 @@ contract MonsterStorage is Ownable
         mon.potionExpire = uint64(potionExpire);
     }
     
-    function setFreeFoodCooldown(uint monsterId, uint freeFoodCooldown) onlyCore public
-    {
-        MonsterLib.Monster storage mon = monsters[monsterId];
-        mon.foodCooldownEndTimestamp = uint64(freeFoodCooldown);
-    }
-    
+
     function setBattleCounter(uint monsterId, uint battleCounter) onlyCore public
     {
         MonsterLib.Monster storage mon = monsters[monsterId];
         mon.battleCounter = uint8(battleCounter);
     }
     
-    function setActionCooldown(uint monsterId, uint cooldownIndex, uint actionCooldown) onlyCore public
+    function setActionCooldown(uint monsterId, 
+    uint cooldownIndex, 
+    uint cooldownEndTimestamp, 
+    uint cooldownStartTimestamp,
+    uint activeGrowCooldownIndex, 
+    uint activeRestCooldownIndex) onlyCore public
     {
         MonsterLib.Monster storage mon = monsters[monsterId];
         mon.cooldownIndex = uint16(cooldownIndex);
-        mon.cooldownEndTimestamp = uint64(actionCooldown);
+        mon.cooldownEndTimestamp = uint64(cooldownEndTimestamp);
+        mon.cooldownStartTimestamp = uint64(cooldownStartTimestamp);
+        mon.activeRestCooldownIndex = uint8(activeRestCooldownIndex);
+        mon.activeGrowCooldownIndex = uint8(activeGrowCooldownIndex);
     }
     
     function setSiringWith(uint monsterId, uint siringWithId) onlyCore public
@@ -194,12 +196,13 @@ contract MonsterStorage is Ownable
         MonsterLib.Monster memory mon2 = MonsterLib.decodeMonsterBits(p1, p2, p3);
         mon.cooldownIndex = mon2.cooldownIndex;
         mon.siringWithId = mon2.siringWithId;
-        mon.growScore = mon2.growScore;
+        mon.activeGrowCooldownIndex = mon2.activeGrowCooldownIndex;
+        mon.activeRestCooldownIndex = mon2.activeRestCooldownIndex;
         mon.level = mon2.level;
         mon.potionEffect = mon2.potionEffect;
         mon.cooldownEndTimestamp = mon2.cooldownEndTimestamp;
         mon.potionExpire = mon2.potionExpire;
-        mon.foodCooldownEndTimestamp = mon2.foodCooldownEndTimestamp;
+        mon.cooldownStartTimestamp = mon2.cooldownStartTimestamp;
         mon.battleCounter = mon2.battleCounter;
         
     }
@@ -216,12 +219,13 @@ contract MonsterStorage is Ownable
         mon.matronId = mon2.matronId;
         mon.sireId = mon2.sireId;
         mon.siringWithId = mon2.siringWithId;
-        mon.growScore = mon2.growScore;
+        mon.activeGrowCooldownIndex = mon2.activeGrowCooldownIndex;
+        mon.activeRestCooldownIndex = mon2.activeRestCooldownIndex;
         mon.level = mon2.level;
         mon.potionEffect = mon2.potionEffect;
         mon.cooldownEndTimestamp = mon2.cooldownEndTimestamp;
         mon.potionExpire = mon2.potionExpire;
-        mon.foodCooldownEndTimestamp = mon2.foodCooldownEndTimestamp;
+        mon.cooldownStartTimestamp = mon2.cooldownStartTimestamp;
         mon.battleCounter = mon2.battleCounter;
         
     }

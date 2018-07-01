@@ -5,6 +5,7 @@ import "./MonsterBitSaleAuction.sol";
 import "./MonsterBattles.sol";
 import "./MonsterFood.sol";
 import "./MonsterStorage.sol";
+import "./MonsterConstants.sol";
 import "./MonsterGeneticsInterface.sol";
 
 /// @title Base contract for MonsterBit. Holds all common structs, events and base variables.
@@ -30,6 +31,7 @@ contract MonsterBase is MonsterAccessControl {
     MonsterBattles public battlesContract;
     MonsterFood public monsterFood;
     MonsterStorage public monsterStorage;
+    MonsterConstants public monsterConstants;
     
     /// @dev The address of the sibling contract that is used to implement the sooper-sekret
     ///  genetic combination algorithm.
@@ -43,6 +45,28 @@ contract MonsterBase is MonsterAccessControl {
 
         // Set the new contract address
         monsterStorage = candidateContract;
+    }
+    
+    function setMonsterConstantsAddress(address _address) external onlyCEO {
+        MonsterConstants candidateContract = MonsterConstants(_address);
+
+        // NOTE: verify that a contract is what we expect
+        require(candidateContract.isMonsterConstants());
+
+        // Set the new contract address
+        monsterConstants = candidateContract;
+    }
+    
+    /// @dev Sets the reference to the battles contract.
+    /// @param _address - Address of battles contract.
+    function setBattlesAddress(address _address) external onlyCEO {
+        MonsterBattles candidateContract = MonsterBattles(_address);
+
+        // NOTE: verify that a contract is what we expect
+        require(candidateContract.isBattleContract());
+
+        // Set the new contract address
+        battlesContract = candidateContract;
     }
 
 
@@ -88,30 +112,29 @@ contract MonsterBase is MonsterAccessControl {
         require(_sireId == uint256(uint32(_sireId)));
         require(_generation == uint256(uint16(_generation)));
         
-         //New monster starts with the same cooldown as parent gen/2
-        uint16 cooldownIndex = uint16(_generation / 2);
-        if (cooldownIndex > 13) {
-            cooldownIndex = 13;
-        }
-            
+        
+        
         MonsterLib.Monster memory _monster = MonsterLib.Monster({
             genes: _genes,
             birthTime: uint64(now),
-            cooldownEndTimestamp: uint64(0),
+            cooldownEndTimestamp: 0,
             matronId: uint32(_matronId),
             sireId: uint32(_sireId),
             siringWithId: uint32(0),
-            cooldownIndex: uint16(cooldownIndex),
+            cooldownIndex: uint16(0),
             generation: uint16(_generation),
             battleGenes: uint64(_battleGenes),
             level: uint8(_level),
-            growScore: uint8(0),
+            activeGrowCooldownIndex: uint8(0),
+            activeRestCooldownIndex: uint8(0),
             potionEffect: uint8(0),
             potionExpire: uint64(0),
-            foodCooldownEndTimestamp: uint64(0),
+            cooldownStartTimestamp: uint64(now),
             battleCounter: uint8(0)
         });
         
+        
+        setMonsterGrow(_monster);
         (uint p1, uint p2, uint p3) = MonsterLib.encodeMonsterBits(_monster);
         
         uint monsterId = monsterStorage.createMonster(p1, p2, p3);
@@ -130,6 +153,25 @@ contract MonsterBase is MonsterAccessControl {
         return monsterId;
     }
     
+    function setMonsterGrow(MonsterLib.Monster monster) internal view
+    {
+         //New monster starts with the same cooldown as parent gen/2
+        uint16 cooldownIndex = uint16(monster.generation / 2);
+        if (cooldownIndex > 13) {
+            cooldownIndex = 13;
+        }
+        
+        uint gen = monster.generation;
+        if(gen > monsterConstants.genToGrowCdIndexLength())
+        {
+            gen = monsterConstants.genToGrowCdIndexLength();
+        }
+        
+        monster.cooldownIndex = uint16(cooldownIndex);
+        monster.activeGrowCooldownIndex = monsterConstants.genToGrowCdIndex(gen);
+        monster.cooldownEndTimestamp = uint64(now + monsterConstants.growCooldowns(monster.activeGrowCooldownIndex));
+    }
+    
     function readMonster(uint monsterId) internal view returns(MonsterLib.Monster)
     {
         (uint p1, uint p2, uint p3) = monsterStorage.getMonsterBits(monsterId);
@@ -138,5 +180,9 @@ contract MonsterBase is MonsterAccessControl {
          
         return mon;
     }
+    
+    
+    
+    
 
 }

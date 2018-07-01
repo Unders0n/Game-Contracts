@@ -15,6 +15,7 @@ contract MonsterBreeding is MonsterOwnership {
     ///  the gas cost paid by whatever calls giveBirth(), and can be dynamically updated by
     ///  the COO role as the gas price changes.
     uint256 public autoBirthFee = 2 finney;
+    uint256 public birthCommission = 1 finney;
     
     
 
@@ -69,37 +70,23 @@ contract MonsterBreeding is MonsterOwnership {
     /// @param _monster A reference to the monster in storage which needs its timer started.
     function _triggerCooldown(uint monsterId, MonsterLib.Monster _monster, uint increaseIndex) internal {
 
-        uint cooldownEndTimestamp = uint64(actionCooldowns[_monster.cooldownIndex] + now);
+        uint activeRestCooldownIndex = _monster.cooldownIndex;
+        uint cooldownEndTimestamp = uint64(monsterConstants.actionCooldowns(activeRestCooldownIndex) + now);
         uint newCooldownIndex = _monster.cooldownIndex;
         // Increment the breeding count, clamping it at 13, which is the length of the
         // cooldowns array. We could check the array size dynamically, but hard-coding
         // this as a constant saves gas. Yay, Solidity!
         if(increaseIndex > 0)
         {
-            if (newCooldownIndex < 13) {
+            if (newCooldownIndex < monsterConstants.actionCooldownsLength()) {
                 newCooldownIndex += 1;
             }
         }
         
-        monsterStorage.setActionCooldown(monsterId, newCooldownIndex, cooldownEndTimestamp);
+        monsterStorage.setActionCooldown(monsterId, newCooldownIndex, cooldownEndTimestamp, now, 0, activeRestCooldownIndex);
     }
     
-    uint32[14] public actionCooldowns = [
-        uint32(1 minutes),
-        uint32(2 minutes),
-        uint32(5 minutes),
-        uint32(10 minutes),
-        uint32(30 minutes),
-        uint32(1 hours),
-        uint32(2 hours),
-        uint32(4 hours),
-        uint32(8 hours),
-        uint32(16 hours),
-        uint32(1 days),
-        uint32(2 days),
-        uint32(4 days),
-        uint32(7 days)
-    ];
+    
 
     /// @notice Grants approval to another user to sire with one of your monsters.
     /// @param _addr The address that will be able to sire with your monster. Set to
@@ -118,6 +105,10 @@ contract MonsterBreeding is MonsterOwnership {
     ///  by the autobirth daemon).
     function setAutoBirthFee(uint256 val) external onlyCOO {
         autoBirthFee = val;
+    }
+    
+    function setBirthCommission(uint val) external onlyCOO{
+        birthCommission = val;
     }
 
     /// @dev Checks to see if a given monster is pregnant and (if so) if the gestation
@@ -138,20 +129,7 @@ contract MonsterBreeding is MonsterOwnership {
         MonsterLib.Monster memory monster = readMonster(_monsterId);
         return _isReadyToBreed(monster);
     }
-
-    /// @dev Checks whether a monster is currently pregnant.
-    /// @param _monsterId reference the id of the monster, any user can inquire about it
-    function isPregnant(uint256 _monsterId)
-        public
-        view
-        returns (bool)
-    {
-        require(_monsterId > 0);
-        // A monster is pregnant if and only if this field is set
-        MonsterLib.Monster memory monster = readMonster(_monsterId);
-        return monster.siringWithId != 0;
-    }
-
+    
     /// @dev Internal check to see if a given sire and matron are a valid mating pair. DOES NOT
     ///  check ownership permissions (that is up to the caller).
     /// @param _matron A reference to the monster struct of the potential matron.
@@ -164,7 +142,7 @@ contract MonsterBreeding is MonsterOwnership {
         MonsterLib.Monster _sire,
         uint256 _sireId
     )
-        private
+        internal
         pure
         returns(bool)
     {
@@ -198,6 +176,21 @@ contract MonsterBreeding is MonsterOwnership {
         // Everything seems cool! Let's get DTF.
         return true;
     }
+
+    /// @dev Checks whether a monster is currently pregnant.
+    /// @param _monsterId reference the id of the monster, any user can inquire about it
+    function isPregnant(uint256 _monsterId)
+        public
+        view
+        returns (bool)
+    {
+        require(_monsterId > 0);
+        // A monster is pregnant if and only if this field is set
+        MonsterLib.Monster memory monster = readMonster(_monsterId);
+        return monster.siringWithId != 0;
+    }
+
+    
 
     /// @dev Internal check to see if a given sire and matron are a valid mating pair for
     ///  breeding via auction (i.e. skips ownership and siring approval checks).
@@ -267,7 +260,7 @@ contract MonsterBreeding is MonsterOwnership {
         whenNotPaused
     {
         // Checks for payment.
-        require(msg.value >= autoBirthFee);
+        require(msg.value >= autoBirthFee + birthCommission);
 
         // Caller must own the matron.
         require(_owns(msg.sender, _matronId));
