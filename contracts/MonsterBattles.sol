@@ -28,6 +28,12 @@ contract MonsterBattles is Pausable {
         _;
     }
     
+    function setTokenContract(address _nftAddress) external onlyOwner
+    {
+        ERC721 candidateContract = ERC721(_nftAddress);
+        nonFungibleContract = candidateContract;
+    }
+    
     function withdrawBalance() external {
         address nftAddress = address(nonFungibleContract);
 

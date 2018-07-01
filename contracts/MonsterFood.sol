@@ -144,7 +144,7 @@ contract MonsterFood {
         uint remainingCdLength = monster.cooldownEndTimestamp - now;
         
         uint price = (10000 * remainingCdLength / totalCdLength) * totalPriceWei / 10000;
-        require(msg.value > price);
+        require(msg.value >= price);
         
         monster.cooldownEndTimestamp = 0;
         monster.cooldownStartTimestamp = 0;
@@ -157,15 +157,19 @@ contract MonsterFood {
     function applyGrow(address originalCaller, MonsterLib.Monster monster)  internal 
     {
         require(monster.level < 1);
-        require(monster.cooldownEndTimestamp > now);
         require(monster.cooldownEndTimestamp > monster.cooldownStartTimestamp);
         
         uint totalPriceWei = cdPricesGrow[monster.activeRestCooldownIndex];
         uint totalCdLength = monster.cooldownEndTimestamp - monster.cooldownStartTimestamp;
-        uint remainingCdLength = monster.cooldownEndTimestamp - now;
         
+        uint remainingCdLength = 0;
+        if(monster.cooldownEndTimestamp > now)
+        {
+            remainingCdLength = monster.cooldownEndTimestamp - now;
+        }
+
         uint price = (10000 * remainingCdLength / totalCdLength) * totalPriceWei / 10000;
-        require(msg.value > price);
+        require(msg.value >= price);
         
         monster.level = 1;
         monster.cooldownEndTimestamp = 0;
