@@ -85,6 +85,20 @@ contract MonsterBase is MonsterAccessControl {
             // clear any previously approved ownership exchange
             monsterStorage.setMonsterIndexToApproved(_tokenId, address(0));
         }
+        
+        if(_from == address(saleAuction))
+        {
+            MonsterLib.Monster memory monster = readMonster(_tokenId);
+            if(monster.level == 0)
+            {
+                monsterStorage.setActionCooldown(_tokenId, 
+                    monster.cooldownIndex, 
+                    uint64(now + monsterConstants.growCooldowns(monster.activeGrowCooldownIndex)), 
+                    now,
+                    monster.activeGrowCooldownIndex, 
+                    monster.activeRestCooldownIndex);
+            }
+        }
         // Emit the transfer event.
         emit Transfer(_from, _to, _tokenId);
     }
