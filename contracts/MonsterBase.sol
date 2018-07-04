@@ -143,7 +143,7 @@ contract MonsterBase is MonsterAccessControl {
             activeRestCooldownIndex: uint8(0),
             potionEffect: uint8(0),
             potionExpire: uint64(0),
-            cooldownStartTimestamp: uint64(now),
+            cooldownStartTimestamp: 0,
             battleCounter: uint8(0)
         });
         
@@ -175,15 +175,20 @@ contract MonsterBase is MonsterAccessControl {
             cooldownIndex = 13;
         }
         
-        uint gen = monster.generation;
-        if(gen > monsterConstants.genToGrowCdIndexLength())
-        {
-            gen = monsterConstants.genToGrowCdIndexLength();
-        }
-        
         monster.cooldownIndex = uint16(cooldownIndex);
-        monster.activeGrowCooldownIndex = monsterConstants.genToGrowCdIndex(gen);
-        monster.cooldownEndTimestamp = uint64(now + monsterConstants.growCooldowns(monster.activeGrowCooldownIndex));
+        
+        if(monster.level == 0)
+        {
+            uint gen = monster.generation;
+            if(gen > monsterConstants.genToGrowCdIndexLength())
+            {
+                gen = monsterConstants.genToGrowCdIndexLength();
+            }
+            
+            monster.activeGrowCooldownIndex = monsterConstants.genToGrowCdIndex(gen);
+            monster.cooldownEndTimestamp = uint64(now + monsterConstants.growCooldowns(monster.activeGrowCooldownIndex));
+            monster.cooldownStartTimestamp = uint64(now);
+        }
     }
     
     function readMonster(uint monsterId) internal view returns(MonsterLib.Monster)
