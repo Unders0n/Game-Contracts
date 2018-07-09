@@ -414,6 +414,22 @@ contract SaleClockAuction is ClockAuction {
     // @dev Sanity check that allows us to ensure that we are pointing to the
     //  right auction in our setSaleAuctionAddress() call.
     bool public isSaleClockAuction = true;
+    
+    uint public bumpFee = 1 finney;
+    
+    function setBumpFee(uint val) external onlyOwner {
+        bumpFee = val;
+    }
+    
+    event AuctionBumped(uint256 tokenId);
+    
+    function bumpAuction(uint tokenId) external payable {
+        require(msg.value >= bumpFee);
+        Auction storage auction = tokenIdToAuction[tokenId];
+        require(_isOnAuction(auction));
+        emit AuctionBumped(tokenId);
+        msg.sender.transfer(msg.value - bumpFee);
+    }
 
 
     // Delegate constructor
