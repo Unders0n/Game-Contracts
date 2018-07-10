@@ -50,12 +50,14 @@ contract MonsterCore is MonsterMinting {
     address public newContractAddress;
 
     /// @notice Creates the main MonsterBit smart contract instance.
-    constructor() public {
+    constructor(address _ceoBackupAddress) public {
+        require(_ceoBackupAddress != address(0));
         // Starts paused.
         paused = true;
 
         // the creator of the contract is the initial CEO
         ceoAddress = msg.sender;
+        ceoBackupAddress = _ceoBackupAddress;
 
         // the creator of the contract is also the initial COO
         cooAddress = msg.sender;

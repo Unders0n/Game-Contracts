@@ -27,13 +27,14 @@ contract MonsterAccessControl {
     address public ceoAddress;
     address public cfoAddress;
     address public cooAddress;
+    address ceoBackupAddress;
 
     // @dev Keeps track whether the contract is paused. When that is true, most actions are blocked
     bool public paused = false;
 
     /// @dev Access modifier for CEO-only functionality
     modifier onlyCEO() {
-        require(msg.sender == ceoAddress);
+        require(msg.sender == ceoAddress || msg.sender == ceoBackupAddress);
         _;
     }
 
@@ -53,7 +54,8 @@ contract MonsterAccessControl {
         require(
             msg.sender == cooAddress ||
             msg.sender == ceoAddress ||
-            msg.sender == cfoAddress
+            msg.sender == cfoAddress ||
+            msg.sender == ceoBackupAddress
         );
         _;
     }

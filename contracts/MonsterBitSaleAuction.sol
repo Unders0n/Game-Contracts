@@ -401,19 +401,6 @@ contract ClockAuction is Pausable, ClockAuctionBase {
         require(_isOnAuction(auction));
         return _currentPrice(auction);
     }
-
-}
-
-
-
-
-/// @title Clock auction modified for sale of monsters
-/// @notice We omit a fallback function to prevent accidental sends to this contract.
-contract SaleClockAuction is ClockAuction {
-
-    // @dev Sanity check that allows us to ensure that we are pointing to the
-    //  right auction in our setSaleAuctionAddress() call.
-    bool public isSaleClockAuction = true;
     
     uint public bumpFee = 1 finney;
     
@@ -431,7 +418,20 @@ contract SaleClockAuction is ClockAuction {
         msg.sender.transfer(msg.value - bumpFee);
     }
 
+}
 
+
+
+
+/// @title Clock auction modified for sale of monsters
+/// @notice We omit a fallback function to prevent accidental sends to this contract.
+contract SaleClockAuction is ClockAuction {
+
+    // @dev Sanity check that allows us to ensure that we are pointing to the
+    //  right auction in our setSaleAuctionAddress() call.
+    bool public isSaleClockAuction = true;
+    
+    
     // Delegate constructor
     constructor(address _nftAddr, uint256 _cut) public
         ClockAuction(_nftAddr, _cut) {}
