@@ -43,6 +43,7 @@ contract MonsterAuction is MonsterFighting {
         // Ensure the monster is not pregnant to prevent the auction
         // contract accidentally receiving ownership of the child.
         // NOTE: the monster IS allowed to be in a cooldown.
+        require(!isPregnant(_monsterId));
         _approve(_monsterId, saleAuction);
         // Sale auction throws if inputs are invalid and clears
         // transfer and sire approval after escrowing the monster.
